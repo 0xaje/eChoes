@@ -252,6 +252,8 @@ export function useVoiceEngine() {
       if (event.error === "not-allowed") {
         setIsEngineActive(false);
         setState("idle");
+      } else if (event.error === "network") {
+        console.warn("Speech recognition cloud connection offline. Conversational pipelines are fully functional via custom integrations.");
       }
     };
 
