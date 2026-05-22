@@ -11,7 +11,7 @@ import DemoModeToggle from "@/components/DemoModeToggle";
 import SynapticMemoryWeb from "@/components/SynapticMemoryWeb";
 import { useVoiceEngine } from "@/hooks/useVoiceEngine";
 import { soundscape } from "@/lib/soundscapeEngine";
-import { Sparkles, Radio, Power, BrainCircuit, Activity } from "lucide-react";
+import { Sparkles, Radio, Power, BrainCircuit, Activity, Volume2, VolumeX } from "lucide-react";
 
 export default function Home() {
   const {
@@ -34,6 +34,7 @@ export default function Home() {
   const [isDemoMode, setIsDemoMode] = useState(false);
   const [isVoicePanelOpen, setIsVoicePanelOpen] = useState(false);
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
+  const [isSoundscapeMuted, setIsSoundscapeMuted] = useState(true);
 
   // Perspective 3D rotation based on mouse coordinates for premium drift depth
   useEffect(() => {
@@ -46,15 +47,15 @@ export default function Home() {
     return () => window.removeEventListener("mousemove", handleMouseMove);
   }, []);
 
-  // Start / Stop and dynamically sync the Ambient Resonance Engine based on active state and emotion
+  // Start / Stop and dynamically sync the Ambient Resonance Engine based on active state, emotion, and mute
   useEffect(() => {
-    if (isEngineActive) {
+    if (isEngineActive && !isSoundscapeMuted) {
       soundscape?.start();
       soundscape?.updateEmotion(currentEmotion, isDemoMode);
     } else {
       soundscape?.stop();
     }
-  }, [isEngineActive, currentEmotion, isDemoMode]);
+  }, [isEngineActive, currentEmotion, isDemoMode, isSoundscapeMuted]);
 
   // Container variants for cinematic reveal
   const containerVariants = {
@@ -548,7 +549,28 @@ export default function Home() {
 
       {/* 6. Floating Bottom-Right Active Mic / Neural Toggle */}
       {!isDemoMode && (
-        <div className="fixed bottom-6 right-8 md:right-12 z-50">
+        <div className="fixed bottom-6 right-8 md:right-12 z-50 flex items-center gap-3">
+          {/* Elegant Mute / Unmute Ambient Soundscape Toggle */}
+          {isEngineActive && (
+            <motion.button 
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={() => setIsSoundscapeMuted(prev => !prev)}
+              className={`w-11 h-11 rounded-full glass-card flex items-center justify-center cursor-pointer transition-all duration-500 border ${
+                !isSoundscapeMuted 
+                  ? "border-emerald-400/40 shadow-[0_0_15px_rgba(52,211,153,0.3)] text-emerald-400" 
+                  : "border-white/10 text-neutral-400 hover:text-white"
+              }`}
+              title={isSoundscapeMuted ? "Unmute Ambient Chords" : "Mute Ambient Chords"}
+            >
+              {isSoundscapeMuted ? (
+                <VolumeX className="w-4.5 h-4.5 text-neutral-400" />
+              ) : (
+                <Volume2 className="w-4.5 h-4.5 text-emerald-400 animate-pulse" />
+              )}
+            </motion.button>
+          )}
+
           <div className="relative w-12 h-12 flex items-center justify-center">
             {isEngineActive && (
               <div className="absolute inset-0 bg-cyan-400 rounded-full opacity-10 animate-ping pointer-events-none" />
