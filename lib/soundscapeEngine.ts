@@ -13,13 +13,13 @@ export class AmbientSoundscapeEngine {
   private ctx: AudioContext | null = null;
   private masterGain: GainNode | null = null;
   
-  // Drone Layer (Cinematic Low Hum - detuned pure sine frequencies for felt sub-bass resonance)
+  // Drone Layer (Cozy low-frequency detuned TRIANGLE waves for warm felt grounding resonance)
   private droneOsc1: OscillatorNode | null = null;
   private droneOsc2: OscillatorNode | null = null;
   private droneGain: GainNode | null = null;
   private droneFilter: BiquadFilterNode | null = null;
   
-  // Pad Layer (Procedural 4-Voice Polyphonic Synthesizer for sweet, soft cinematic chords)
+  // Pad Layer (Procedural 4-Voice Polyphonic Detuned TRIANGLE Synthesizer for warm, vintage pads)
   private padOsc1: OscillatorNode | null = null;
   private padOsc2: OscillatorNode | null = null;
   private padOsc3: OscillatorNode | null = null;
@@ -28,17 +28,29 @@ export class AmbientSoundscapeEngine {
   private padFilter: BiquadFilterNode | null = null;
   private padPanner: StereoPannerNode | null = null;
   
-  // Shimmer/Texture Layer (Airy high spacious frequency chimes/refractions)
-  private textureOsc: OscillatorNode | null = null;
-  private textureGain: GainNode | null = null;
-  private textureFilter: BiquadFilterNode | null = null;
-  private texturePanner: StereoPannerNode | null = null;
+  // Distant Star Harmonics (Ultra-quiet high-frequency sine anchor)
+  private harmonicOsc: OscillatorNode | null = null;
+  private harmonicGain: GainNode | null = null;
+  private harmonicFilter: BiquadFilterNode | null = null;
 
-  // LFOs for Evolving Motion
+  // Breathing Machine Hum (Soft 60Hz grounding analog electricity hum)
+  private humOsc: OscillatorNode | null = null;
+  private humGain: GainNode | null = null;
+  private humFilter: BiquadFilterNode | null = null;
+
+  // Soft Analog Synth Air (Procedurally computed Warm Pink Noise Wind)
+  private airSource: AudioBufferSourceNode | null = null;
+  private airGain: GainNode | null = null;
+  private airFilter: BiquadFilterNode | null = null;
+  private airPanner: StereoPannerNode | null = null;
+
+  // LFOs for Evolving Resonance and Pacing
   private lfoFilter: OscillatorNode | null = null;
   private lfoPan: OscillatorNode | null = null;
+  private lfoAir: OscillatorNode | null = null;
+  private lfoHum: OscillatorNode | null = null;
 
-  // Subtle Cathedral Reverb Node Network (Step 3: Atmospheric Space Resonance)
+  // Subtle Cathedral Reverb Node Network (Schroeder Delay Loops for spatial depth)
   private reverbDelay1: DelayNode | null = null;
   private reverbDelay2: DelayNode | null = null;
   private reverbDelay3: DelayNode | null = null;
@@ -68,6 +80,34 @@ export class AmbientSoundscapeEngine {
     this.masterGain.connect(this.ctx.destination);
   }
 
+  // Custom mathematical generator to compute rich, warm, comforting pink noise (analog air wind)
+  private createPinkNoiseBuffer(): AudioBuffer {
+    const sampleRate = this.ctx!.sampleRate;
+    const bufferSize = 4 * sampleRate; // 4 seconds of unique looped noise
+    const noiseBuffer = this.ctx!.createBuffer(1, bufferSize, sampleRate);
+    const output = noiseBuffer.getChannelData(0);
+    
+    let b0 = 0, b1 = 0, b2 = 0, b3 = 0, b4 = 0, b5 = 0, b6 = 0;
+    
+    for (let i = 0; i < bufferSize; i++) {
+      const white = Math.random() * 2 - 1;
+      
+      // Pink noise filtering coefficients approximation for gushy synth air
+      b0 = 0.99886 * b0 + white * 0.0555179;
+      b1 = 0.99332 * b1 + white * 0.0750759;
+      b2 = 0.96900 * b2 + white * 0.1538520;
+      b3 = 0.86650 * b3 + white * 0.3104856;
+      b4 = 0.55000 * b4 + white * 0.5329522;
+      b5 = -0.7616 * b5 - white * 0.0168980;
+      const pink = b0 + b1 + b2 + b3 + b4 + b5 + b6 + white * 0.5362;
+      b6 = white * 0.115926;
+      
+      output[i] = pink * 0.065; // Soften global amplitude inside buffer
+    }
+    
+    return noiseBuffer;
+  }
+
   public start() {
     this.init();
     if (!this.ctx || this.isStarted) return;
@@ -79,31 +119,31 @@ export class AmbientSoundscapeEngine {
     const t = this.ctx.currentTime;
     this.isStarted = true;
 
-    // --- 1. DEEP DRONE LAYER (Low-frequency cinematic sub-bass foundation) ---
+    // --- 1. DRONE LAYER (Low-frequency cozy detuned TRIANGLE waves) ---
     this.droneOsc1 = this.ctx.createOscillator();
     this.droneOsc2 = this.ctx.createOscillator();
     this.droneGain = this.ctx.createGain();
     this.droneFilter = this.ctx.createBiquadFilter();
 
-    // 55Hz (A1) detuned A0 (27.5Hz) pure sine waves for felt sub-bass resonance rather than a harsh hum
-    this.droneOsc1.type = "sine";
-    this.droneOsc1.frequency.setValueAtTime(27.5, t);
+    // Detuned Triangle waves at F1 (43.65Hz) and C2 (65.4Hz - perfect 5th) for beautiful felt analog body hum
+    this.droneOsc1.type = "triangle";
+    this.droneOsc1.frequency.setValueAtTime(43.65, t);
     
-    this.droneOsc2.type = "sine";
-    this.droneOsc2.frequency.setValueAtTime(55, t);
+    this.droneOsc2.type = "triangle";
+    this.droneOsc2.frequency.setValueAtTime(65.40, t);
 
     this.droneFilter.type = "lowpass";
-    this.droneFilter.frequency.setValueAtTime(80, t); // Cinematic cutoff
-    this.droneFilter.Q.setValueAtTime(1, t);
+    this.droneFilter.frequency.setValueAtTime(70, t); // Super warm deep lowpass cut
+    this.droneFilter.Q.setValueAtTime(1.0, t);
 
-    this.droneGain.gain.setValueAtTime(0.32, t); // High volume but felt sub-bass
+    this.droneGain.gain.setValueAtTime(0.08, t); // Very subtle felt rumble
 
     this.droneOsc1.connect(this.droneFilter);
     this.droneOsc2.connect(this.droneFilter);
     this.droneFilter.connect(this.droneGain);
     this.droneGain.connect(this.masterGain!);
 
-    // --- 2. PROCEDURAL 4-VOICE POLYPHONIC PAD LAYER (Drifting chord presence) ---
+    // --- 2. CHORUS-DETUNED POLYPHONIC PAD LAYER (Warm analog sweeps) ---
     this.padOsc1 = this.ctx.createOscillator();
     this.padOsc2 = this.ctx.createOscillator();
     this.padOsc3 = this.ctx.createOscillator();
@@ -112,23 +152,23 @@ export class AmbientSoundscapeEngine {
     this.padFilter = this.ctx.createBiquadFilter();
     this.padPanner = this.ctx.createStereoPanner ? this.ctx.createStereoPanner() : null;
 
-    // Detuned Sine waves exclusive for a beautiful, soft, and cloud-like tone
-    this.padOsc1.type = "sine";
-    this.padOsc2.type = "sine";
-    this.padOsc3.type = "sine";
-    this.padOsc4.type = "sine";
+    // Cozy Triangle waves instead of harsh sines, detuned slightly (+/- 2 cents) for vintage chorus vibe
+    this.padOsc1.type = "triangle";
+    this.padOsc2.type = "triangle";
+    this.padOsc3.type = "triangle";
+    this.padOsc4.type = "triangle";
 
-    // Initialize with a warm A Major 9 chord (Root, 3rd, 5th, 9th)
+    // Warm, comforting A Major 9 Chord (Root, 3rd, 5th, 9th)
     this.padOsc1.frequency.setValueAtTime(220.00, t); // A3
     this.padOsc2.frequency.setValueAtTime(277.18, t); // C#4
     this.padOsc3.frequency.setValueAtTime(329.63, t); // E4
     this.padOsc4.frequency.setValueAtTime(493.88, t); // B4
 
     this.padFilter.type = "lowpass";
-    this.padFilter.frequency.setValueAtTime(350, t); // Ethereal low cut to keep it soft
-    this.padFilter.Q.setValueAtTime(2, t);           // Ethereal resonance bump
+    this.padFilter.frequency.setValueAtTime(240, t); // Cinematic low-cutoff sweep
+    this.padFilter.Q.setValueAtTime(1.2, t);
 
-    this.padGain.gain.setValueAtTime(0.09, t);
+    this.padGain.gain.setValueAtTime(0.07, t); // Extremely quiet atmospheric blend
 
     this.padOsc1.connect(this.padFilter);
     this.padOsc2.connect(this.padFilter);
@@ -138,88 +178,140 @@ export class AmbientSoundscapeEngine {
     if (this.padPanner) {
       this.padFilter.connect(this.padPanner);
       this.padPanner.connect(this.padGain);
-      this.padPanner.pan.setValueAtTime(0, t);
+      this.padPanner.pan.setValueAtTime(-0.15, t);
     } else {
       this.padFilter.connect(this.padGain);
     }
 
     this.padGain.connect(this.masterGain!);
 
-    // --- 3. AIRY TEXTURE/SHIMMER LAYER (High spacious frequency) ---
-    this.textureOsc = this.ctx.createOscillator();
-    this.textureGain = this.ctx.createGain();
-    this.textureFilter = this.ctx.createBiquadFilter();
-    this.texturePanner = this.ctx.createStereoPanner ? this.ctx.createStereoPanner() : null;
+    // --- 3. WARM PINK NOISE WIND LAYER (Analog Synth Air) ---
+    const pinkNoiseBuffer = this.createPinkNoiseBuffer();
+    this.airSource = this.ctx.createBufferSource();
+    this.airSource.buffer = pinkNoiseBuffer;
+    this.airSource.loop = true;
 
-    this.textureOsc.type = "sine";
-    this.textureOsc.frequency.setValueAtTime(440, t); // Resonant frequency A4
+    this.airGain = this.ctx.createGain();
+    this.airFilter = this.ctx.createBiquadFilter();
+    this.airPanner = this.ctx.createStereoPanner ? this.ctx.createStereoPanner() : null;
 
-    this.textureFilter.type = "bandpass";
-    this.textureFilter.frequency.setValueAtTime(659.25, t); // E4 chime resonance
-    this.textureFilter.Q.setValueAtTime(3, t);
+    this.airFilter.type = "bandpass";
+    this.airFilter.frequency.setValueAtTime(450, t); // Soft airy breeze resonance
+    this.airFilter.Q.setValueAtTime(1.5, t);         // Smooth breathing filter width
 
-    this.textureGain.gain.setValueAtTime(0.01, t);
+    this.airGain.gain.setValueAtTime(0.024, t); // Almost silent but highly comforting presence
 
-    this.textureOsc.connect(this.textureFilter);
-    if (this.texturePanner) {
-      this.textureFilter.connect(this.texturePanner);
-      this.texturePanner.connect(this.textureGain);
-      this.texturePanner.pan.setValueAtTime(0.6, t);
+    this.airSource.connect(this.airFilter);
+    if (this.airPanner) {
+      this.airFilter.connect(this.airPanner);
+      this.airPanner.connect(this.airGain);
+      this.airPanner.pan.setValueAtTime(0.3, t);
     } else {
-      this.textureFilter.connect(this.textureGain);
+      this.airFilter.connect(this.airGain);
     }
-    this.textureGain.connect(this.masterGain!);
+    this.airGain.connect(this.masterGain!);
 
-    // --- 4. MOTION INTERACTION LFOS (Continuous slow orbital drift) ---
+    // --- 4. BREATHING MACHINE HUM (Cozy low electricity grounding hum) ---
+    this.humOsc = this.ctx.createOscillator();
+    this.humGain = this.ctx.createGain();
+    this.humFilter = this.ctx.createBiquadFilter();
+
+    this.humOsc.type = "triangle";
+    this.humOsc.frequency.setValueAtTime(60.00, t); // Classic 60Hz grounding analog electricity hum
+
+    this.humFilter.type = "lowpass";
+    this.humFilter.frequency.setValueAtTime(65, t);
+    this.humFilter.Q.setValueAtTime(0.8, t);
+
+    this.humGain.gain.setValueAtTime(0.016, t); // Extremely faint machine presence
+
+    this.humOsc.connect(this.humFilter);
+    this.humFilter.connect(this.humGain);
+    this.humGain.connect(this.masterGain!);
+
+    // --- 5. DISTANT STAR HARMONICS (Dreamy spacious high tone) ---
+    this.harmonicOsc = this.ctx.createOscillator();
+    this.harmonicGain = this.ctx.createGain();
+    this.harmonicFilter = this.ctx.createBiquadFilter();
+
+    this.harmonicOsc.type = "sine";
+    this.harmonicOsc.frequency.setValueAtTime(329.63, t); // Dreamy E4 star chime
+
+    this.harmonicFilter.type = "lowpass";
+    this.harmonicFilter.frequency.setValueAtTime(330, t);
+    this.harmonicFilter.Q.setValueAtTime(0.7, t);
+
+    this.harmonicGain.gain.setValueAtTime(0.005, t); // Barely audible anchor
+
+    this.harmonicOsc.connect(this.harmonicFilter);
+    this.harmonicFilter.connect(this.harmonicGain);
+    this.harmonicGain.connect(this.masterGain!);
+
+    // --- 6. MOTION INTERACTION LFOS (Respiration and slow orbital panning) ---
     this.lfoFilter = this.ctx.createOscillator();
     this.lfoPan = this.ctx.createOscillator();
+    this.lfoAir = this.ctx.createOscillator();
+    this.lfoHum = this.ctx.createOscillator();
 
-    this.lfoFilter.frequency.setValueAtTime(0.06, t); // Very slow 16s cycle
-    this.lfoPan.frequency.setValueAtTime(0.03, t);    // Ultra slow 33s panning cycle
+    this.lfoFilter.frequency.setValueAtTime(0.045, t); // Very slow 22s pad sweeping cycle
+    this.lfoPan.frequency.setValueAtTime(0.022, t);    // Ultra slow 45s orbital panning cycle
+    this.lfoAir.frequency.setValueAtTime(0.058, t);    // Slow 17s organic breeze respiration
+    this.lfoHum.frequency.setValueAtTime(0.083, t);    // Slow 12s machine hum breathing
 
-    // Connect LFO Pan to spatial panner
+    // Pan pad layer slowly left-to-right
     if (this.padPanner) {
       const panGain = this.ctx.createGain();
-      panGain.gain.setValueAtTime(0.75, t); // High pan width
+      panGain.gain.setValueAtTime(0.45, t); // Soft orbital spread
       this.lfoPan.connect(panGain);
       panGain.connect(this.padPanner.pan);
     }
 
-    // Connect LFO Filter to Pad Filter frequency to create breathing pad sweeps
-    const filterLfoGain = this.ctx.createGain();
-    filterLfoGain.gain.setValueAtTime(70, t); // Cutoff sweep range +/- 70Hz
-    this.lfoFilter.connect(filterLfoGain);
-    filterLfoGain.connect(this.padFilter.frequency);
+    // Breeze LFO - sweep pink noise filter frequency slowly to mimic soft breathing air
+    const airLfoGain = this.ctx.createGain();
+    airLfoGain.gain.setValueAtTime(140, t); // Sweep air between 310Hz and 590Hz
+    this.lfoAir.connect(airLfoGain);
+    airLfoGain.connect(this.airFilter.frequency);
 
-    // --- 5. SUBTLE CATHEDRAL REVERB SPACE (Step 3: Environmental Acoustics) ---
+    // Pad LFO - sweep pad lowpass filter frequency for breath sweeps
+    const padLfoGain = this.ctx.createGain();
+    padLfoGain.gain.setValueAtTime(55, t); // Sweep pad filter range
+    this.lfoFilter.connect(padLfoGain);
+    padLfoGain.connect(this.padFilter.frequency);
+
+    // Hum LFO - modulate machine hum volume gently to resemble mechanical respiration
+    const humLfoGain = this.ctx.createGain();
+    humLfoGain.gain.setValueAtTime(0.006, t); // Micro volume breath oscillations
+    this.lfoHum.connect(humLfoGain);
+    humLfoGain.connect(this.humGain.gain);
+
+    // --- 7. CATHEDRAL REVERB DECAY PATH (Atmospheric acoustics) ---
     this.reverbDelay1 = this.ctx.createDelay(1.0);
     this.reverbDelay2 = this.ctx.createDelay(1.0);
     this.reverbDelay3 = this.ctx.createDelay(1.0);
     this.reverbGain = this.ctx.createGain();
     this.reverbFilter = this.ctx.createBiquadFilter();
 
-    // Natural room reflection prime spacings (23ms, 37ms, 59ms)
+    // Spatially wide delay reflections (23ms, 37ms, 59ms)
     this.reverbDelay1.delayTime.setValueAtTime(0.023, t);
     this.reverbDelay2.delayTime.setValueAtTime(0.037, t);
     this.reverbDelay3.delayTime.setValueAtTime(0.059, t);
 
-    // Dark lowpass filter on reverb loop to roll off high frequency metallic click echo
     this.reverbFilter.type = "lowpass";
-    this.reverbFilter.frequency.setValueAtTime(750, t); // Warm, physical dark space tail
+    this.reverbFilter.frequency.setValueAtTime(650, t); // Extremely dark cathedral reflection cutoff
     this.reverbFilter.Q.setValueAtTime(0.7, t);
 
-    // Reverb gain: cinematic, quiet, almost invisible tail
-    this.reverbGain.gain.setValueAtTime(0.038, t);
+    this.reverbGain.gain.setValueAtTime(0.05, t); // Warm, spacious, comfortable space tail
 
-    // Connect pad and shimmer filters to the Cathedral Reverb space
+    // Feed pad synths, analog air breeze, and star harmonics into Cathedral space
     this.padFilter.connect(this.reverbFilter);
-    this.textureFilter.connect(this.reverbFilter);
+    this.airFilter.connect(this.reverbFilter);
+    this.harmonicFilter.connect(this.reverbFilter);
 
-    // Build the Schroeder feedback decay loop
+    // Form feedback loop
     this.reverbFilter.connect(this.reverbDelay1);
     this.reverbDelay1.connect(this.reverbDelay2);
     this.reverbDelay2.connect(this.reverbDelay3);
-    this.reverbDelay3.connect(this.reverbFilter); // feedback link
+    this.reverbDelay3.connect(this.reverbFilter);
 
     this.reverbDelay3.connect(this.reverbGain);
     this.reverbGain.connect(this.masterGain!);
@@ -231,14 +323,19 @@ export class AmbientSoundscapeEngine {
     this.padOsc2.start(t);
     this.padOsc3.start(t);
     this.padOsc4.start(t);
-    this.textureOsc.start(t);
+    this.harmonicOsc.start(t);
+    this.humOsc.start(t);
+    this.airSource.start(t);
+
     this.lfoFilter.start(t);
     this.lfoPan.start(t);
+    this.lfoAir.start(t);
+    this.lfoHum.start(t);
 
-    // Smoothly fade in master soundscape volume to make launch spectacular
-    this.masterGain!.gain.linearRampToValueAtTime(0.85, t + 4.5);
+    // Smoothly swell master soundscape volume over 4.5s for emotional impact
+    this.masterGain!.gain.linearRampToValueAtTime(0.75, t + 4.5);
     
-    // Apply baseline emotional weights
+    // Set initial emotional chords
     this.updateEmotion(this.currentEmotion, this.isDemoModeActive);
   }
 
@@ -249,113 +346,125 @@ export class AmbientSoundscapeEngine {
     if (!this.ctx || !this.isStarted) return;
     
     const t = this.ctx.currentTime;
-    const fadeTime = 4.0; // Slow, organic, beautiful 4-second crossfade transitions
+    const fadeTime = 4.0; // Extra slow, comforting 4-second crossfades between emotions
     
-    // Target chord frequency allocations representing lush, sweet extensions
-    let f1 = 220.00; // Root
-    let f2 = 277.18; // 3rd
-    let f3 = 329.63; // 5th
-    let f4 = 493.88; // 9th or 7th
+    // Deep cinema detuned chord allocations
+    let f1 = 220.00; // Root pad frequency
+    let f2 = 277.18;
+    let f3 = 329.63;
+    let f4 = 493.88;
 
-    const demoMultiplier = isDemoMode ? 1.45 : 1.0;
+    const demoMultiplier = isDemoMode ? 1.25 : 1.0;
 
     switch (emotion) {
       case "calm":
-        // Lush, sweet A Major 9
+        // Cozy, sweet, warm A Major 9
         f1 = 220.00; // A3
         f2 = 277.18; // C#4
         f3 = 329.63; // E4
         f4 = 493.88; // B4
         
-        this.droneGain?.gain.setTargetAtTime(0.36 * demoMultiplier, t, fadeTime);
-        this.droneFilter?.frequency.setTargetAtTime(70, t, fadeTime);
+        this.droneGain?.gain.setTargetAtTime(0.08 * demoMultiplier, t, fadeTime);
+        this.droneFilter?.frequency.setTargetAtTime(65, t, fadeTime);
         
-        this.padGain?.gain.setTargetAtTime(0.14 * demoMultiplier, t, fadeTime);
-        this.padFilter?.frequency.setTargetAtTime(360, t, fadeTime);
-        this.textureGain?.gain.setTargetAtTime(0.008 * demoMultiplier, t, fadeTime);
+        this.padGain?.gain.setTargetAtTime(0.08 * demoMultiplier, t, fadeTime);
+        this.padFilter?.frequency.setTargetAtTime(260, t, fadeTime);
+        
+        this.airGain?.gain.setTargetAtTime(0.024 * demoMultiplier, t, fadeTime);
+        this.harmonicGain?.gain.setTargetAtTime(0.005, t, fadeTime);
         break;
 
       case "melancholic":
-        // Beautiful, emotional C Minor 9
+        // Cinematic, deep C Minor 9 (highly emotional)
         f1 = 130.81; // C3
         f2 = 155.56; // Eb3
         f3 = 196.00; // G3
         f4 = 293.66; // D4
         
-        this.droneGain?.gain.setTargetAtTime(0.25 * demoMultiplier, t, fadeTime);
-        this.droneFilter?.frequency.setTargetAtTime(60, t, fadeTime);
+        this.droneGain?.gain.setTargetAtTime(0.06 * demoMultiplier, t, fadeTime);
+        this.droneFilter?.frequency.setTargetAtTime(55, t, fadeTime);
         
-        this.padGain?.gain.setTargetAtTime(0.09 * demoMultiplier, t, fadeTime);
-        this.padFilter?.frequency.setTargetAtTime(260, t, fadeTime);
-        this.textureGain?.gain.setTargetAtTime(0.02 * demoMultiplier, t, fadeTime);
+        this.padGain?.gain.setTargetAtTime(0.05 * demoMultiplier, t, fadeTime);
+        this.padFilter?.frequency.setTargetAtTime(210, t, fadeTime);
+        
+        this.airGain?.gain.setTargetAtTime(0.035 * demoMultiplier, t, fadeTime); // Wind swell
+        this.harmonicGain?.gain.setTargetAtTime(0.008, t, fadeTime);
         break;
 
       case "anxious":
-        // Grounding, comforting, deeply stabilizing F Major 7
+        // Grounding, stabilizing, warm F Major 7
         f1 = 174.61; // F3
         f2 = 220.00; // A3
         f3 = 261.63; // C4
         f4 = 329.63; // E4
         
-        this.droneGain?.gain.setTargetAtTime(0.48 * demoMultiplier, t, fadeTime); // Grounding bass presence
-        this.droneFilter?.frequency.setTargetAtTime(55, t, fadeTime);
+        this.droneGain?.gain.setTargetAtTime(0.095 * demoMultiplier, t, fadeTime); // Stable low grounding
+        this.droneFilter?.frequency.setTargetAtTime(50, t, fadeTime);
         
-        this.padGain?.gain.setTargetAtTime(0.06 * demoMultiplier, t, fadeTime);
-        this.padFilter?.frequency.setTargetAtTime(210, t, fadeTime);
-        this.textureGain?.gain.setTargetAtTime(0.002, t, fadeTime);
+        this.padGain?.gain.setTargetAtTime(0.04 * demoMultiplier, t, fadeTime);
+        this.padFilter?.frequency.setTargetAtTime(180, t, fadeTime);
+        
+        this.airGain?.gain.setTargetAtTime(0.015, t, fadeTime);
+        this.harmonicGain?.gain.setTargetAtTime(0.002, t, fadeTime);
         break;
 
       case "reflective":
-        // Dreamy suspended A sus2 / sus4 drift
+        // Dreamy, floating suspended A sus2 / sus4 drift
         f1 = 220.00; // A3
         f2 = 246.94; // B3
         f3 = 329.63; // E4
-        f4 = 587.33; // D5 (evocative high extension)
+        f4 = 587.33; // D5
         
-        this.droneGain?.gain.setTargetAtTime(0.3 * demoMultiplier, t, fadeTime);
-        this.droneFilter?.frequency.setTargetAtTime(80, t, fadeTime);
+        this.droneGain?.gain.setTargetAtTime(0.07 * demoMultiplier, t, fadeTime);
+        this.droneFilter?.frequency.setTargetAtTime(70, t, fadeTime);
         
-        this.padGain?.gain.setTargetAtTime(0.16 * demoMultiplier, t, fadeTime);
-        this.padFilter?.frequency.setTargetAtTime(420, t, fadeTime);
-        this.textureGain?.gain.setTargetAtTime(0.015 * demoMultiplier, t, fadeTime);
+        this.padGain?.gain.setTargetAtTime(0.09 * demoMultiplier, t, fadeTime);
+        this.padFilter?.frequency.setTargetAtTime(290, t, fadeTime);
+        
+        this.airGain?.gain.setTargetAtTime(0.028 * demoMultiplier, t, fadeTime);
+        this.harmonicGain?.gain.setTargetAtTime(0.007, t, fadeTime);
         break;
 
       case "playful":
       case "excited":
-        // Active, bright G Major 9
+        // Soft positive G Major 9
         f1 = 196.00; // G3
         f2 = 246.94; // B3
         f3 = 293.66; // D4
         f4 = 440.00; // A4
         
-        this.droneGain?.gain.setTargetAtTime(0.2 * demoMultiplier, t, fadeTime);
-        this.droneFilter?.frequency.setTargetAtTime(90, t, fadeTime);
+        this.droneGain?.gain.setTargetAtTime(0.05 * demoMultiplier, t, fadeTime);
+        this.droneFilter?.frequency.setTargetAtTime(80, t, fadeTime);
         
-        this.padGain?.gain.setTargetAtTime(0.18 * demoMultiplier, t, fadeTime);
-        this.padFilter?.frequency.setTargetAtTime(550, t, fadeTime);
-        this.textureGain?.gain.setTargetAtTime(0.03 * demoMultiplier, t, fadeTime);
+        this.padGain?.gain.setTargetAtTime(0.10 * demoMultiplier, t, fadeTime);
+        this.padFilter?.frequency.setTargetAtTime(320, t, fadeTime);
+        
+        this.airGain?.gain.setTargetAtTime(0.03 * demoMultiplier, t, fadeTime);
+        this.harmonicGain?.gain.setTargetAtTime(0.006, t, fadeTime);
         break;
 
       case "lonely":
-        // Isolated, floating, spacious E minor 11
+        // Isolated, spacious, highly comforting E minor 11
         f1 = 164.81; // E3
         f2 = 196.00; // G3
         f3 = 293.66; // D4
         f4 = 440.00; // A4
         
-        this.droneGain?.gain.setTargetAtTime(0.28 * demoMultiplier, t, fadeTime);
-        this.droneFilter?.frequency.setTargetAtTime(65, t, fadeTime);
+        this.droneGain?.gain.setTargetAtTime(0.075 * demoMultiplier, t, fadeTime);
+        this.droneFilter?.frequency.setTargetAtTime(60, t, fadeTime);
         
-        this.padGain?.gain.setTargetAtTime(0.08 * demoMultiplier, t, fadeTime);
-        this.padFilter?.frequency.setTargetAtTime(230, t, fadeTime);
-        this.textureGain?.gain.setTargetAtTime(0.018 * demoMultiplier, t, fadeTime);
+        this.padGain?.gain.setTargetAtTime(0.055 * demoMultiplier, t, fadeTime);
+        this.padFilter?.frequency.setTargetAtTime(220, t, fadeTime);
+        
+        this.airGain?.gain.setTargetAtTime(0.032 * demoMultiplier, t, fadeTime);
+        this.harmonicGain?.gain.setTargetAtTime(0.009, t, fadeTime);
         break;
 
       default:
         break;
     }
 
-    // Procedurally morph/glide the individual chord voice frequencies over 4 seconds
+    // Procedurally glide pad voices to new chord over 4 seconds
     this.padOsc1?.frequency.setTargetAtTime(f1, t, fadeTime);
     this.padOsc2?.frequency.setTargetAtTime(f2, t, fadeTime);
     this.padOsc3?.frequency.setTargetAtTime(f3, t, fadeTime);
@@ -376,9 +485,17 @@ export class AmbientSoundscapeEngine {
         this.padOsc2?.stop();
         this.padOsc3?.stop();
         this.padOsc4?.stop();
-        this.textureOsc?.stop();
+        this.harmonicOsc?.stop();
+        this.humOsc?.stop();
+        
+        if (this.airSource) {
+          try { this.airSource.stop(); } catch (e) {}
+        }
+        
         this.lfoFilter?.stop();
         this.lfoPan?.stop();
+        this.lfoAir?.stop();
+        this.lfoHum?.stop();
         
         this.droneOsc1?.disconnect();
         this.droneOsc2?.disconnect();
@@ -386,7 +503,9 @@ export class AmbientSoundscapeEngine {
         this.padOsc2?.disconnect();
         this.padOsc3?.disconnect();
         this.padOsc4?.disconnect();
-        this.textureOsc?.disconnect();
+        this.harmonicOsc?.disconnect();
+        this.humOsc?.disconnect();
+        this.airSource?.disconnect();
 
         this.reverbDelay1?.disconnect();
         this.reverbDelay2?.disconnect();
