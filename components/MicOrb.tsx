@@ -9,6 +9,7 @@ interface MicOrbProps {
   onClick?: () => void;
   emotion?: string;
   voice?: string;
+  isDemoMode?: boolean;
 }
 
 export default function MicOrb({ 
@@ -16,7 +17,8 @@ export default function MicOrb({
   volume = 0, 
   onClick, 
   emotion = "calm", 
-  voice = "Bella" 
+  voice = "Bella",
+  isDemoMode = false
 }: MicOrbProps) {
   
   // Dynamic color selection function combining state, emotion, and voice
@@ -179,19 +181,19 @@ export default function MicOrb({
         className="relative w-56 h-56 md:w-64 md:h-64 rounded-full flex items-center justify-center cursor-pointer group"
         initial={{ y: 0 }}
         animate={{
-          y: state === "speaking" ? 0 : [-4, 4, -4],
-          scale: state === "speaking" ? 1 + volume * 0.08 : [1.0, 1.025, 1.0], // Organic idle breathing cycle
+          y: state === "speaking" ? 0 : isDemoMode ? [-8, 8, -8] : [-4, 4, -4],
+          scale: state === "speaking" ? 1 + volume * 0.08 : isDemoMode ? [1.0, 1.055, 1.0] : [1.0, 1.025, 1.0], // Organic idle breathing cycle
         }}
         transition={{
           y: {
-            duration: emotion === "excited" ? 3.5 : emotion === "reflective" ? 6.5 : 5.0,
+            duration: isDemoMode ? 9.0 : (emotion === "excited" ? 3.5 : emotion === "reflective" ? 6.5 : 5.0),
             repeat: Infinity,
             ease: "easeInOut" as const,
           },
           scale: state === "speaking"
             ? { duration: 0.08 }
             : {
-                duration: emotion === "excited" ? 2.2 : emotion === "reflective" ? 4.5 : 3.5,
+                duration: isDemoMode ? 6.0 : (emotion === "excited" ? 2.2 : emotion === "reflective" ? 4.5 : 3.5),
                 repeat: Infinity,
                 ease: "easeInOut" as const,
               }

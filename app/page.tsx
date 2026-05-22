@@ -8,7 +8,9 @@ import VoiceVisualizer from "@/components/VoiceVisualizer";
 import StatusText from "@/components/StatusText";
 import VoicePersonalityPanel from "@/components/VoicePersonalityPanel";
 import DemoModeToggle from "@/components/DemoModeToggle";
+import SynapticMemoryWeb from "@/components/SynapticMemoryWeb";
 import { useVoiceEngine } from "@/hooks/useVoiceEngine";
+import { soundscape } from "@/lib/soundscapeEngine";
 import { Sparkles, Radio, Power, BrainCircuit, Activity } from "lucide-react";
 
 export default function Home() {
@@ -43,6 +45,16 @@ export default function Home() {
     window.addEventListener("mousemove", handleMouseMove);
     return () => window.removeEventListener("mousemove", handleMouseMove);
   }, []);
+
+  // Start / Stop and dynamically sync the Ambient Resonance Engine based on active state and emotion
+  useEffect(() => {
+    if (isEngineActive) {
+      soundscape?.start();
+      soundscape?.updateEmotion(currentEmotion, isDemoMode);
+    } else {
+      soundscape?.stop();
+    }
+  }, [isEngineActive, currentEmotion, isDemoMode]);
 
   // Container variants for cinematic reveal
   const containerVariants = {
@@ -286,8 +298,15 @@ export default function Home() {
               initial="hidden"
               animate={isDemoMode ? "demoActive" : "show"}
               exit={{ opacity: 0, scale: 0.95 }}
-              className="w-full flex flex-col items-center justify-center"
+              className="w-full flex flex-col items-center justify-center relative min-h-[500px]"
             >
+              {/* Step 4 & 5: Synaptic Memory Constellation Overlay */}
+              <SynapticMemoryWeb 
+                memories={recentMemories} 
+                isActive={isEngineActive} 
+                isDemoMode={isDemoMode} 
+              />
+
               {/* Centerpiece 3D Camera / Mouse coordinate tracking drift container */}
               <motion.div
                 variants={itemVariants}
@@ -318,6 +337,7 @@ export default function Home() {
                   onClick={handleInterruption}
                   emotion={currentEmotion}
                   voice={currentVoice}
+                  isDemoMode={isDemoMode}
                 />
               </motion.div>
 
