@@ -20,12 +20,14 @@ interface VoicePersonalityPanelProps {
   currentVoice: string;
   onVoiceChange: (voice: string) => void;
   emotion: string;
+  compact?: boolean; // New prop to seamlessly switch between wide dashboard grid and compact session drawer
 }
 
 export default function VoicePersonalityPanel({
   currentVoice,
   onVoiceChange,
   emotion,
+  compact = false,
 }: VoicePersonalityPanelProps) {
   
   const profiles: VoiceProfile[] = [
@@ -67,6 +69,100 @@ export default function VoicePersonalityPanel({
     },
   ];
 
+  // --- 1. COMPACT DRAWER RENDER (Strict w-[320px] boundary layout with zero overlap) ---
+  if (compact) {
+    return (
+      <div className="w-full select-none flex flex-col gap-2.5">
+        {/* Compact Header */}
+        <div className="flex items-center justify-between border-b border-white/5 pb-2 mb-1 px-1">
+          <div className="flex items-center space-x-2">
+            <Radio className="w-3.5 h-3.5 text-cyan-400 animate-pulse" />
+            <span className="text-[9px] tracking-[0.2em] uppercase text-neutral-400 font-bold">
+              Select Voice
+            </span>
+          </div>
+          <span className="text-[8px] text-neutral-500 uppercase tracking-widest font-mono">
+            {emotion}
+          </span>
+        </div>
+
+        {/* Compact Stack - Render as a beautiful vertical list */}
+        <div className="flex flex-col gap-2">
+          {profiles.map((profile) => {
+            const isActive = currentVoice === profile.name;
+
+            return (
+              <motion.div
+                key={profile.name}
+                whileHover={{ scale: 1.01 }}
+                whileTap={{ scale: 0.99 }}
+                onClick={() => onVoiceChange(profile.name)}
+                className={`relative p-3 rounded-xl border transition-all duration-500 flex flex-col gap-2 ${
+                  isActive
+                    ? `bg-black/70 border-white/15 shadow-[0_0_12px_rgba(6,182,212,0.1)]`
+                    : "bg-neutral-900/30 border-white/5 hover:border-white/10"
+                }`}
+              >
+                {/* Subtle colored background card glow */}
+                <div
+                  className={`absolute inset-0 rounded-xl bg-gradient-to-r ${profile.themeClass} opacity-10 transition-opacity duration-500 -z-10`}
+                />
+
+                {/* Header Row */}
+                <div className="flex items-center justify-between w-full">
+                  <div className="flex items-center space-x-2.5">
+                    {/* Compact Cyber Avatar */}
+                    <div className={`relative w-8 h-8 rounded-full overflow-hidden border transition-all duration-500 shrink-0 ${
+                      isActive ? `border-current ${profile.accentColor}` : "border-white/10"
+                    }`}>
+                      <img 
+                        src={profile.avatarUrl} 
+                        alt={profile.name} 
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-1.5">
+                        <h4 className="text-[11px] font-bold text-white tracking-wider">
+                          {profile.name}
+                        </h4>
+                        <span className="text-[7px] px-1 py-0.25 rounded bg-white/5 text-neutral-400 font-medium tracking-wide uppercase border border-white/5 shrink-0">
+                          {profile.name === "Bella" ? "Warm" : profile.name === "Rachel" ? "Oracle" : "Anchor"}
+                        </span>
+                      </div>
+                      <p className={`text-[8px] uppercase tracking-wider mt-0.5 font-medium ${isActive ? profile.accentColor : "text-neutral-500"}`}>
+                        {profile.heritage}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Radio Indicator */}
+                  <div
+                    className={`w-3.5 h-3.5 rounded-full flex items-center justify-center border transition-all duration-500 shrink-0 ${
+                      isActive
+                        ? `${profile.accentColor} border-current`
+                        : "border-white/10"
+                    }`}
+                  >
+                    {isActive && (
+                      <div className={`w-1.5 h-1.5 rounded-full ${profile.indicatorColor}`} />
+                    )}
+                  </div>
+                </div>
+
+                {/* Cozy description inside row boundaries (no vertical text spills) */}
+                <p className="text-[9px] text-neutral-400 font-light leading-relaxed select-none px-0.5 border-t border-white/5 pt-1.5">
+                  {profile.description}
+                </p>
+              </motion.div>
+            );
+          })}
+        </div>
+      </div>
+    );
+  }
+
+  // --- 2. SPACIOUS WIDE SCREEN RENDER (Dashboard pre-connection calibration screen) ---
   return (
     <div className="w-full max-w-2xl mx-auto px-4 select-none">
       {/* Title */}
@@ -83,7 +179,7 @@ export default function VoicePersonalityPanel({
         </div>
       </div>
 
-      {/* Grid of Personality Cards */}
+      {/* Grid of Personality Cards (Responsive and spacious) */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {profiles.map((profile) => {
           const isActive = currentVoice === profile.name;
@@ -108,8 +204,8 @@ export default function VoicePersonalityPanel({
               {/* Card Header (Avatar + Name / Heritage) */}
               <div className="flex items-start justify-between w-full">
                 <div className="flex items-center space-x-3">
-                  {/* High-fidelity Cyberpunk Cultural Avatar */}
-                  <div className={`relative w-14 h-14 rounded-full overflow-hidden border-2 transition-all duration-700 shrink-0 ${
+                  {/* High-fidelity Cyber Avatar */}
+                  <div className={`relative w-12 h-12 md:w-14 md:h-14 rounded-full overflow-hidden border-2 transition-all duration-700 shrink-0 ${
                     isActive ? `border-current ${profile.accentColor}` : "border-white/10"
                   }`}>
                     <img 
@@ -130,7 +226,7 @@ export default function VoicePersonalityPanel({
 
                 {/* Selected Indicator Check */}
                 <div
-                  className={`w-4 h-4 rounded-full flex items-center justify-center border transition-all duration-500 mt-1 ${
+                  className={`w-4 h-4 rounded-full flex items-center justify-center border transition-all duration-500 mt-1 shrink-0 ${
                     isActive
                       ? `${profile.accentColor} border-current`
                       : "border-white/10"

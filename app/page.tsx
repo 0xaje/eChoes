@@ -521,7 +521,7 @@ export default function Home() {
                 animate={{ opacity: 1, y: 0, scale: 1 }}
                 exit={{ opacity: 0, y: 15, scale: 0.95 }}
                 transition={{ duration: 0.3 }}
-                className="glass-card p-4 rounded-2xl w-[320px] max-w-sm mb-2 shadow-2xl relative"
+                className="glass-card p-4 rounded-2xl w-[335px] md:w-[350px] max-w-sm mb-2 shadow-2xl relative"
               >
                 <VoicePersonalityPanel
                   currentVoice={currentVoice}
@@ -530,6 +530,7 @@ export default function Home() {
                     setIsVoicePanelOpen(false);
                   }}
                   emotion={currentEmotion}
+                  compact={true}
                 />
               </motion.div>
             )}
