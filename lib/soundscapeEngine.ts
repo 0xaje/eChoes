@@ -37,6 +37,13 @@ export class AmbientSoundscapeEngine {
   // LFOs for Evolving Motion
   private lfoFilter: OscillatorNode | null = null;
   private lfoPan: OscillatorNode | null = null;
+
+  // Subtle Cathedral Reverb Node Network (Step 3: Atmospheric Space Resonance)
+  private reverbDelay1: DelayNode | null = null;
+  private reverbDelay2: DelayNode | null = null;
+  private reverbDelay3: DelayNode | null = null;
+  private reverbGain: GainNode | null = null;
+  private reverbFilter: BiquadFilterNode | null = null;
   
   private isStarted = false;
   private currentEmotion: SoundscapeEmotion = "calm";
@@ -183,6 +190,39 @@ export class AmbientSoundscapeEngine {
     filterLfoGain.gain.setValueAtTime(70, t); // Cutoff sweep range +/- 70Hz
     this.lfoFilter.connect(filterLfoGain);
     filterLfoGain.connect(this.padFilter.frequency);
+
+    // --- 5. SUBTLE CATHEDRAL REVERB SPACE (Step 3: Environmental Acoustics) ---
+    this.reverbDelay1 = this.ctx.createDelay(1.0);
+    this.reverbDelay2 = this.ctx.createDelay(1.0);
+    this.reverbDelay3 = this.ctx.createDelay(1.0);
+    this.reverbGain = this.ctx.createGain();
+    this.reverbFilter = this.ctx.createBiquadFilter();
+
+    // Natural room reflection prime spacings (23ms, 37ms, 59ms)
+    this.reverbDelay1.delayTime.setValueAtTime(0.023, t);
+    this.reverbDelay2.delayTime.setValueAtTime(0.037, t);
+    this.reverbDelay3.delayTime.setValueAtTime(0.059, t);
+
+    // Dark lowpass filter on reverb loop to roll off high frequency metallic click echo
+    this.reverbFilter.type = "lowpass";
+    this.reverbFilter.frequency.setValueAtTime(750, t); // Warm, physical dark space tail
+    this.reverbFilter.Q.setValueAtTime(0.7, t);
+
+    // Reverb gain: cinematic, quiet, almost invisible tail
+    this.reverbGain.gain.setValueAtTime(0.038, t);
+
+    // Connect pad and shimmer filters to the Cathedral Reverb space
+    this.padFilter.connect(this.reverbFilter);
+    this.textureFilter.connect(this.reverbFilter);
+
+    // Build the Schroeder feedback decay loop
+    this.reverbFilter.connect(this.reverbDelay1);
+    this.reverbDelay1.connect(this.reverbDelay2);
+    this.reverbDelay2.connect(this.reverbDelay3);
+    this.reverbDelay3.connect(this.reverbFilter); // feedback link
+
+    this.reverbDelay3.connect(this.reverbGain);
+    this.reverbGain.connect(this.masterGain!);
 
     // --- Start all nodes ---
     this.droneOsc1.start(t);
@@ -347,6 +387,12 @@ export class AmbientSoundscapeEngine {
         this.padOsc3?.disconnect();
         this.padOsc4?.disconnect();
         this.textureOsc?.disconnect();
+
+        this.reverbDelay1?.disconnect();
+        this.reverbDelay2?.disconnect();
+        this.reverbDelay3?.disconnect();
+        this.reverbFilter?.disconnect();
+        this.reverbGain?.disconnect();
         
         this.isStarted = false;
       } catch (e) {

@@ -431,7 +431,7 @@ export default function Home() {
       {/* 4. Bottom Subtitles and Narrative Area */}
       <footer className="w-full relative px-6 pb-12 z-30 flex flex-col items-center shrink-0">
         <AnimatePresence>
-          {!isDemoMode && isEngineActive && (
+          {isEngineActive && (
             <motion.div
               initial={{ y: 15, opacity: 0 }}
               animate={{ y: 0, opacity: 1 }}

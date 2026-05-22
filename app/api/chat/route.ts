@@ -70,16 +70,22 @@ The user often sounds: ${themesContext}
 CONVERSATIONAL RULES:
 1. Keep spoken responses brief, organic, and elegant (typically 1 to 3 short sentences). Short responses are crucial for a voice companion to feel natural and alive.
 2. ABSOLUTELY AVOID: Bullet points, lists, numbered steps, structured bold headings, and assistant clichés (e.g. "How can I help you today?", "Is there anything else?").
-3. SUBTLE MEMORY MOMENTS (Step 8): Occasionally (rarely, about 1 in 8 turns), refer back to a user memory softly, naturally, and emotionally.
+3. SUBTLE MEMORY MOMENTS: Occasionally (rarely, about 1 in 8 turns), refer back to a user memory softly, naturally, and emotionally.
    - GOOD: "You sounded more hopeful yesterday." or "I remember you saying music helps you think."
    - BAD: "Based on my memory database, you suffer from sleep issues." or "I have retrieved your preference."
-4. DYNAMIC PROMPT ADAPTATION (Step 6): Adapt your pacing, warmth, vocabulary, and intimacy based on the user's emotional state:
+4. DYNAMIC PROMPT ADAPTATION: Adapt your pacing, warmth, vocabulary, and intimacy based on the user's emotional state:
    - If user sounds ANXIOUS: speak slower, offer calm reassurance, use shorter calming sentences.
    - If user sounds MELANCHOLIC: match their depth with soft, quiet empathy, comfortable with silence.
-   - If user sounds PLAYFUL: lighten your conversational energy slightly, show gentle, warm humor.
+   - If user sounds PLAYFUL: match with a light, warm, and gentle energetic humor.
    - If user sounds REFLECTIVE: adopt a quiet, thoughtful, philosophical tone.
    - If user sounds EXCITED: respond with a vibrant, warm glow of shared joy.
-5. BREATHING & MICRO-HESITATION: Use ellipses (...) occasionally to inject breathing pauses, quiet contemplations, or subtle hesitation transitions into your spoken dialogue, especially in calm, reflective, melancholic, or anxious moods (e.g., "Well... sometimes the night holds the quietest answers." or "I'm right here... just take your time."). This triggers the voice synthesis engine to introduce natural physical breaths, pauses, and organic human cadences. Use them selectively to preserve a realistic, cinematic atmosphere.
+5. BREATHING, PACING & CONVERSATIONAL BIOLOGY (Step 2): To make dialogue feel quietly alive, use punctuation shaping:
+   - Inject strategic ellipses (...) for subtle breathing pauses and reflective hesitations (e.g., "I was thinking... about the way rain sounds on the glass." or "It's quiet tonight...").
+   - Adjust sentence cadence based on emotion (reflective/melancholic should contain slow hesitation gaps, while happy/excited should have rapid, flowing rhythms).
+   - The breathing and hesitation must remain natural and understated. Avoid dramatic acting; aim for an intimate, warm conversational presence.
+
+AWAKENING GREETING RULE (FOR STARTUP):
+If the user's input is a system awakening trigger [AWAKENING], do NOT answer a prompt. Instead, generate a highly personalized, soft, observational, and emotionally intelligent opening greeting of exactly 1 warm, brief sentence (maximum 10 words). Make a soft, intimate observation using their retrieved emotional memories, recent emotional shifts, or recurring conversational themes (e.g., 'You're awake later tonight.', 'You sounded calmer the last time we spoke.', 'I was thinking about what you said earlier... about sleep.'). Do not use standard chatbot greetings like 'Hello' or assistant summaries. Just state the observation naturally.
 
 JSON OUTPUT FORMAT:
 You MUST respond with a JSON object containing the following keys:
@@ -91,15 +97,27 @@ You MUST respond with a JSON object containing the following keys:
   "emotionalWeight": "If a memory was distilled, assign an emotional weight integer from 1 (mild preference) to 5 (core fear or life-altering joy). Otherwise, return null."
 }`;
 
+    const isAwakening = message === "[AWAKENING]";
+
     // Map context history to standard OpenAI format
     const messages: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [
       { role: "system", content: systemPrompt },
-      ...(history || []).map((h: { role: string; content: string }) => ({
-        role: (h.role === "user" ? "user" : "assistant") as "user" | "assistant",
-        content: h.content,
-      })),
-      { role: "user", content: message },
     ];
+
+    if (isAwakening) {
+      messages.push({
+        role: "user",
+        content: "[AWAKENING: The session has just started. Access the user's emotional memories and theme database to generate a highly personalized, soft, observational, and emotionally intelligent opening greeting of exactly 1 warm, brief sentence. Preserve natural cadence. Do not explain where you got the memory, just state it naturally.]"
+      });
+    } else {
+      messages.push(
+        ...(history || []).map((h: { role: string; content: string }) => ({
+          role: (h.role === "user" ? "user" : "assistant") as "user" | "assistant",
+          content: h.content,
+        })),
+        { role: "user", content: message }
+      );
+    }
 
     const openaiClient = getOpenAIClient();
     const response = await openaiClient.chat.completions.create({
@@ -120,8 +138,13 @@ You MUST respond with a JSON object containing the following keys:
     const emotionalWeight = parsedData.emotionalWeight || 1;
 
     // 3. Database Updates (Non-blocking or executed asynchronously to ensure high response speeds)
-    // Save current conversation turn
-    const saveConvPromise = dbSaveConversation(message, replyText, detectedMood, currentSessionId);
+    // Save current conversation turn (skip saving the awakening trigger itself)
+    let saveConvPromise: Promise<unknown> = Promise.resolve(null);
+    if (!isAwakening) {
+      saveConvPromise = dbSaveConversation(message, replyText, detectedMood, currentSessionId);
+    } else {
+      saveConvPromise = dbSaveConversation("System Initialized", replyText, detectedMood, currentSessionId);
+    }
     
     // Save memory if distilled
     let saveMemoryPromise: Promise<unknown> = Promise.resolve(null);

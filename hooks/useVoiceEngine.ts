@@ -321,6 +321,24 @@ export function useVoiceEngine() {
         const source = audioContext.createMediaElementSource(audioRef.current);
         source.connect(analyserRef.current);
         analyserRef.current.connect(audioContext.destination);
+
+        // Step 3: Subtle cathedral room acoustics reverb (Delay-based spatial tail)
+        const voiceDelay = audioContext.createDelay(1.0);
+        const voiceReverbGain = audioContext.createGain();
+        const voiceFilter = audioContext.createBiquadFilter();
+
+        voiceDelay.delayTime.setValueAtTime(0.045, audioContext.currentTime); // 45ms soft tail reflection
+        voiceFilter.type = "lowpass";
+        voiceFilter.frequency.setValueAtTime(850, audioContext.currentTime); // Dark reflection filter cutoff
+        voiceFilter.Q.setValueAtTime(0.7, audioContext.currentTime);
+
+        voiceReverbGain.gain.setValueAtTime(0.06, audioContext.currentTime); // Cinematic, highly restrained space gain
+
+        // Connect parallel spatial reflection path
+        source.connect(voiceFilter);
+        voiceFilter.connect(voiceDelay);
+        voiceDelay.connect(voiceReverbGain);
+        voiceReverbGain.connect(audioContext.destination);
       }
 
       const analyser = analyserRef.current;
@@ -367,14 +385,22 @@ export function useVoiceEngine() {
   const processConversation = async (messageText: string) => {
     if (!messageText.trim()) return;
 
+    const isAwakening = messageText === "[AWAKENING]";
+
     setState("thinking");
-    setTranscript(messageText);
+    if (!isAwakening) {
+      setTranscript(messageText);
+    } else {
+      setTranscript(""); // Keep user input transcript blank during cinematic wake sequence
+    }
 
     try {
-      // Append user message to history
-      const userMessage: Message = { role: "user", content: messageText };
-      const updatedHistory = [...history, userMessage];
-      setHistory(updatedHistory);
+      let updatedHistory = history;
+      if (!isAwakening) {
+        const userMessage: Message = { role: "user", content: messageText };
+        updatedHistory = [...history, userMessage];
+        setHistory(updatedHistory);
+      }
 
       // 1. Fetch conversational routing (mood-aware & memory-injected)
       const chatResponse = await fetch("/api/chat", {
@@ -472,7 +498,8 @@ export function useVoiceEngine() {
     if (!recognitionRef.current) initSpeechRecognition();
     if (!audioRef.current) initAudioEngine();
 
-    setState("listening");
+    // Step 4: Cinematic Awakening Sequence - set to thinking to morph centerpiece orb
+    setState("thinking");
 
     // Fetch initial profile & memories asynchronously to resume atmospheric mood
     if (sessionId) {
@@ -493,13 +520,12 @@ export function useVoiceEngine() {
       }
     }
 
-    if (recognitionRef.current) {
-      try {
-        recognitionRef.current.start();
-      } catch (e) {
-        console.warn("Speech recognition already running.", e);
+    // Step 4: Delay initial awakening greeting to let sub-bass drone and warm reverb swell first in silence
+    setTimeout(() => {
+      if (isEngineActiveRef.current) {
+        processConversation("[AWAKENING]");
       }
-    }
+    }, 1800);
   };
 
   // Shut down Engine
