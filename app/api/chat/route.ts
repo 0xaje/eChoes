@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import OpenAI from "openai";
 import { dbGetTopMemories, dbGetEmotionalThemes, dbSaveConversation, dbSaveMemory } from "@/lib/supabase";
 
+export const dynamic = "force-dynamic";
+
 // Lazy-initialized OpenAI client to prevent Next.js build-time credential evaluation crashes
 let openai: OpenAI | null = null;
 function getOpenAIClient() {
