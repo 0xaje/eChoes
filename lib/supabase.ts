@@ -175,7 +175,7 @@ class LocalMemoryDB {
 
     // If any items decayed or dissolved, update database
     const hasChanges = decayedAndActive.length < filtered.length || 
-      decayedAndActive.some((m, idx) => {
+      decayedAndActive.some((m) => {
         const orig = filtered.find(o => o.id === m.id);
         return orig && orig.emotional_weight !== m.emotional_weight;
       });

@@ -2,6 +2,7 @@
 
 import { motion } from "framer-motion";
 import { Radio } from "lucide-react";
+import Image from "next/image";
 
 interface VoiceProfile {
   name: string;
@@ -113,9 +114,11 @@ export default function VoicePersonalityPanel({
                     {/* Compact Cyber Avatar */}
                     <div className={`relative w-8 h-8 rounded-full overflow-hidden border transition-all duration-500 shrink-0 ${isActive ? `border-current ${profile.accentColor}` : "border-white/10"
                       }`}>
-                      <img
+                      <Image
                         src={profile.avatarUrl}
                         alt={profile.name}
+                        width={32}
+                        height={32}
                         className="w-full h-full object-cover"
                       />
                     </div>
@@ -203,9 +206,11 @@ export default function VoicePersonalityPanel({
                   {/* High-fidelity Cyber Avatar */}
                   <div className={`relative w-12 h-12 md:w-14 md:h-14 rounded-full overflow-hidden border-2 transition-all duration-700 shrink-0 ${isActive ? `border-current ${profile.accentColor}` : "border-white/10"
                     }`}>
-                    <img
+                    <Image
                       src={profile.avatarUrl}
                       alt={profile.name}
+                      width={56}
+                      height={56}
                       className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                     />
                   </div>
