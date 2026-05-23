@@ -581,18 +581,35 @@ export function useVoiceEngine() {
         setIsEngineActive(false);
         setState("idle");
       } else if (event.error === "network") {
-        console.warn("Speech recognition cloud connection offline. Conversational pipelines are fully functional via custom integrations.");
+        console.warn("Speech recognition cloud connection offline. Scheduling automatic connection recovery in 2 seconds...");
+        setTimeout(() => {
+          if (isEngineActiveRef.current && (stateRef.current === "listening" || stateRef.current === "idle")) {
+            try {
+              recognitionRef.current.start();
+              console.log("⚡ Auto-recovered speech recognition network tunnel successfully.");
+            } catch (e) {}
+          }
+        }, 2000);
+      } else if (event.error === "aborted") {
+        console.log("Speech recognition aborted. Ready to resume.");
       }
     };
 
     recognition.onend = () => {
       console.log("Speech recognition ended.");
-      // Auto-restart if engine is active and we are in listening mode
-      if (isEngineActiveRef.current && stateRef.current === "listening") {
+      // Auto-restart if engine is active and we are in listening or transition phases
+      if (isEngineActiveRef.current && (stateRef.current === "listening" || stateRef.current === "idle")) {
         try {
           recognitionRef.current.start();
         } catch (e) {
-          // Ignore if already active
+          // Backoff retry in 1 second if context lock was active
+          setTimeout(() => {
+            if (isEngineActiveRef.current && stateRef.current === "listening") {
+              try {
+                recognitionRef.current.start();
+              } catch (err) {}
+            }
+          }, 1000);
         }
       }
     };
