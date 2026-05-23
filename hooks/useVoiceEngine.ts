@@ -47,6 +47,8 @@ export function useVoiceEngine() {
   const isEngineActiveRef = useRef(false);
   const silenceTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const fadeIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const networkRetryCountRef = useRef(0);
+  const isNetworkRecoveringRef = useRef(false);
 
   // Ref synchronizers to ensure web Speech API always reads fresh states
   const emotionRef = useRef<string>("calm");
@@ -133,6 +135,20 @@ export function useVoiceEngine() {
     return () => {
       stopEngine();
     };
+  }, []);
+
+  // Warm up speechSynthesis voices to ensure they are fully populated in browser cache
+  useEffect(() => {
+    if (typeof window !== "undefined" && "speechSynthesis" in window) {
+      window.speechSynthesis.getVoices();
+      const handleVoicesChanged = () => {
+        window.speechSynthesis.getVoices();
+      };
+      window.speechSynthesis.addEventListener("voiceschanged", handleVoicesChanged);
+      return () => {
+        window.speechSynthesis.removeEventListener("voiceschanged", handleVoicesChanged);
+      };
+    }
   }, []);
 
   // Update selected voice and persist it
@@ -244,21 +260,75 @@ export function useVoiceEngine() {
     
     // Choose high-quality voice depending on personality
     const voices = window.speechSynthesis.getVoices();
-    let selectedVoice = null;
+    const englishVoices = voices.filter(v => v.lang.toLowerCase().startsWith("en"));
+    const candidateVoices = englishVoices.length > 0 ? englishVoices : voices;
     
+    let selectedVoice = null;
+
+    const isFemaleKeyword = (name: string) => {
+      const lower = name.toLowerCase();
+      return lower.includes("female") || 
+             lower.includes("woman") || 
+             lower.includes("girl") || 
+             lower.includes("zira") || 
+             lower.includes("samantha") || 
+             lower.includes("karen") || 
+             lower.includes("veena") || 
+             lower.includes("moira") || 
+             lower.includes("tessa") || 
+             lower.includes("susan") || 
+             lower.includes("hazel") || 
+             lower.includes("rachel") || 
+             lower.includes("bella");
+    };
+
+    const isMaleKeyword = (name: string) => {
+      const lower = name.toLowerCase();
+      return lower.includes("male") || 
+             lower.includes("man") || 
+             lower.includes("boy") || 
+             lower.includes("david") || 
+             lower.includes("antoni") || 
+             lower.includes("george") || 
+             lower.includes("ravi") || 
+             lower.includes("daniel") ||
+             lower.includes("guy") ||
+             lower.includes("pete");
+    };
+
     if (voiceRef.current === "Bella") {
-      // Warm feminine
-      selectedVoice = voices.find(v => v.name.includes("Google US English") || v.name.includes("Zira") || v.lang.startsWith("en-US"));
+      // Bella - Warm feminine (prefer US English female voice first)
+      const usFemale = candidateVoices.find(v => (v.lang.toLowerCase().startsWith("en-us") || v.lang.toLowerCase().startsWith("en_us")) && isFemaleKeyword(v.name));
+      selectedVoice = usFemale || candidateVoices.find(v => isFemaleKeyword(v.name));
+      if (!selectedVoice) {
+        // Fallback: any voice that is not explicitly male
+        selectedVoice = candidateVoices.find(v => !isMaleKeyword(v.name));
+      }
     } else if (voiceRef.current === "Rachel") {
-      // Elegant futuristic
-      selectedVoice = voices.find(v => v.name.includes("Google UK English Female") || v.name.includes("Hazel") || v.lang.startsWith("en-GB"));
+      // Rachel - Elegant futuristic (prefer UK English female voice first)
+      const ukFemale = candidateVoices.find(v => (v.lang.toLowerCase().startsWith("en-gb") || v.lang.toLowerCase().startsWith("en_gb")) && isFemaleKeyword(v.name));
+      selectedVoice = ukFemale || candidateVoices.find(v => isFemaleKeyword(v.name));
+      if (!selectedVoice) {
+        // Fallback: any voice that is not explicitly male
+        selectedVoice = candidateVoices.find(v => !isMaleKeyword(v.name));
+      }
     } else {
-      // Antoni - Reassuring masculine
-      selectedVoice = voices.find(v => v.name.includes("Google US English Male") || v.name.includes("David") || (v.lang.startsWith("en-US") && v.name.includes("Male")));
+      // Antoni - Masculine
+      const anyMale = candidateVoices.find(v => isMaleKeyword(v.name));
+      selectedVoice = anyMale || candidateVoices.find(v => {
+        const lower = v.name.toLowerCase();
+        return !isFemaleKeyword(lower);
+      });
+    }
+
+    // Absolute fallback
+    if (!selectedVoice && candidateVoices.length > 0) {
+      selectedVoice = candidateVoices[0];
     }
     
     if (selectedVoice) {
       utterance.voice = selectedVoice;
+      console.log(`🗣️ WebSpeech selected voice: ${selectedVoice.name} (${selectedVoice.lang})`);
     }
     
     // Adjust pitch and rate depending on emotion
@@ -532,6 +602,8 @@ export function useVoiceEngine() {
 
     recognition.onstart = () => {
       console.log("Speech recognition started.");
+      networkRetryCountRef.current = 0;
+      isNetworkRecoveringRef.current = false;
       if (stateRef.current === "idle" || stateRef.current === "speaking") {
         setState("listening");
       }
@@ -576,27 +648,54 @@ export function useVoiceEngine() {
     };
 
     recognition.onerror = (event: any) => {
-      console.error("Speech Recognition Error:", event.error);
-      if (event.error === "not-allowed") {
+      const errorType = event.error;
+      
+      // Handle status events or normal conditions gracefully without printing console.error
+      if (errorType === "network") {
+        console.warn("Speech Recognition cloud connection Warning:", errorType);
+      } else if (errorType === "no-speech" || errorType === "aborted") {
+        console.log("Speech Recognition Status:", errorType);
+      } else {
+        console.error("Speech Recognition Error:", errorType);
+      }
+
+      if (errorType === "not-allowed") {
         setIsEngineActive(false);
         setState("idle");
-      } else if (event.error === "network") {
-        console.warn("Speech recognition cloud connection offline. Scheduling automatic connection recovery in 2 seconds...");
+      } else if (errorType === "network") {
+        isNetworkRecoveringRef.current = true;
+        networkRetryCountRef.current += 1;
+        if (networkRetryCountRef.current > 3) {
+          console.warn("🚫 Speech recognition failed persistently (network error). Switching to manual keyboard fallback to save resources.");
+          isNetworkRecoveringRef.current = false;
+          return;
+        }
+        console.warn(`Speech recognition cloud connection offline (attempt ${networkRetryCountRef.current}/3). Scheduling automatic connection recovery in 2 seconds...`);
         setTimeout(() => {
           if (isEngineActiveRef.current && (stateRef.current === "listening" || stateRef.current === "idle")) {
             try {
+              isNetworkRecoveringRef.current = false;
               recognitionRef.current.start();
               console.log("⚡ Auto-recovered speech recognition network tunnel successfully.");
-            } catch (e) {}
+            } catch (e) {
+              isNetworkRecoveringRef.current = false;
+            }
+          } else {
+            isNetworkRecoveringRef.current = false;
           }
         }, 2000);
-      } else if (event.error === "aborted") {
-        console.log("Speech recognition aborted. Ready to resume.");
       }
     };
 
     recognition.onend = () => {
       console.log("Speech recognition ended.");
+      
+      // If we are currently in the middle of a network retry recovery sequence, defer to the scheduler
+      if (isNetworkRecoveringRef.current) {
+        console.log("Speech recognition ended due to network error. Deferring restart to auto-recovery scheduler.");
+        return;
+      }
+
       // Auto-restart if engine is active and we are in listening or transition phases
       if (isEngineActiveRef.current && (stateRef.current === "listening" || stateRef.current === "idle")) {
         try {
@@ -604,7 +703,7 @@ export function useVoiceEngine() {
         } catch (e) {
           // Backoff retry in 1 second if context lock was active
           setTimeout(() => {
-            if (isEngineActiveRef.current && stateRef.current === "listening") {
+            if (isEngineActiveRef.current && stateRef.current === "listening" && !isNetworkRecoveringRef.current) {
               try {
                 recognitionRef.current.start();
               } catch (err) {}
@@ -908,6 +1007,7 @@ export function useVoiceEngine() {
   const stopEngine = () => {
     setIsEngineActive(false);
     isEngineActiveRef.current = false;
+    isNetworkRecoveringRef.current = false;
 
     if (recognitionRef.current) {
       try {

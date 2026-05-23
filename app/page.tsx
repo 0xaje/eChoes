@@ -127,7 +127,7 @@ export default function Home() {
                   >
                     <Radio className="w-3 h-3 text-emerald-400 animate-pulse" />
                     <span className="text-[8px] uppercase tracking-widest text-emerald-300 font-medium">
-                      Neural Link Active
+                      Echoes Link Active
                     </span>
                   </motion.div>
                 ) : (

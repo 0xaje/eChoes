@@ -35,6 +35,8 @@ export async function POST(req: Request) {
     const { message, history, sessionId, voice } = await req.json();
 
     const isDemoModeOrMissingKey = !process.env.ANTHROPIC_API_KEY || process.env.ANTHROPIC_API_KEY === "your_anthropic_api_key_here";
+    const elevenLabsApiKey = process.env.ELEVENLABS_API_KEY;
+    const isElevenLabsMock = !elevenLabsApiKey || elevenLabsApiKey === "your_elevenlabs_api_key_here";
     const currentSessionId = sessionId || "default-session";
     const activeVoice = voice || "Bella";
 
@@ -293,6 +295,7 @@ You MUST respond with a valid, clean JSON object containing the following keys (
       text: replyText.trim(),
       emotion: detectedMood,
       distilledMemory: distilledMemory || null,
+      isSimulated: isElevenLabsMock,
     });
   } catch (error) {
     console.error("Claude Chat API Exception:", error);
