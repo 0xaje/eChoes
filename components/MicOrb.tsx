@@ -2,13 +2,14 @@
 
 import { motion, AnimatePresence, Variants } from "framer-motion";
 import { Mic } from "lucide-react";
+import OrbParticleField from "./OrbParticleField";
+import { useEmotionFlow } from "@/lib/emotionFlowDirector";
+import { getPauseParameters } from "@/lib/emotionalPauseEngine";
 
 interface MicOrbProps {
-  state: "listening" | "thinking" | "speaking";
+  state: "listening" | "thinking" | "speaking" | "idle" | "reflecting";
   volume?: number;
   onClick?: () => void;
-  emotion?: string;
-  voice?: string;
   isDemoMode?: boolean;
 }
 
@@ -16,132 +17,63 @@ export default function MicOrb({
   state,
   volume = 0,
   onClick,
-  emotion = "calm",
-  voice = "Bella",
   isDemoMode = false
 }: MicOrbProps) {
+  const { emotion: activeEmotion, activeParams } = useEmotionFlow();
 
-  // Dynamic color selection function combining state, emotion, and voice
-  const getOrbTheme = () => {
-    if (state === "thinking") {
-      return {
-        primary: "from-purple-500 via-fuchsia-600 to-pink-600",
-        secondary: "bg-purple-500/20",
-        innerGlow: "shadow-[0_0_50px_20px_rgba(168,85,247,0.35)]",
-        border: "border-purple-500/30",
-        ripple: "rgba(168, 85, 247, 0.4)",
-      };
-    }
+  const pauseParams = getPauseParameters(activeEmotion);
+  const isReflecting = state === "reflecting";
+  const glowDim = isReflecting ? pauseParams.orbDimmingFactor : 1.0;
 
-    switch (emotion) {
-      case "melancholic":
-        return {
-          primary: "from-violet-600 via-indigo-700 to-purple-950",
-          secondary: "bg-violet-600/15",
-          innerGlow: "shadow-[0_0_50px_20px_rgba(139,92,246,0.3)]",
-          border: "border-violet-500/20",
-          ripple: "rgba(139, 92, 246, 0.3)",
-        };
-      case "excited":
-        return {
-          primary: "from-cyan-400 via-pink-500 to-fuchsia-500",
-          secondary: "bg-cyan-500/25",
-          innerGlow: "shadow-[0_0_60px_25px_rgba(6,182,212,0.45)]",
-          border: "border-cyan-400/40",
-          ripple: "rgba(6, 182, 212, 0.6)",
-        };
-      case "reflective":
-        return {
-          primary: "from-amber-500 via-yellow-600 to-amber-800",
-          secondary: "bg-amber-500/20",
-          innerGlow: "shadow-[0_0_50px_20px_rgba(245,158,11,0.35)]",
-          border: "border-amber-500/30",
-          ripple: "rgba(245, 158, 11, 0.4)",
-        };
-      case "anxious":
-        return {
-          primary: "from-slate-500 via-indigo-900 to-slate-900",
-          secondary: "bg-slate-500/10",
-          innerGlow: "shadow-[0_0_40px_15px_rgba(148,163,184,0.2)]",
-          border: "border-slate-500/20",
-          ripple: "rgba(148, 163, 184, 0.3)",
-        };
-      case "lonely":
-        return {
-          primary: "from-neutral-700 via-indigo-950 to-neutral-900",
-          secondary: "bg-neutral-600/10",
-          innerGlow: "shadow-[0_0_40px_15px_rgba(120,119,198,0.15)]",
-          border: "border-neutral-500/20",
-          ripple: "rgba(120, 119, 198, 0.2)",
-        };
-      case "playful":
-        return {
-          primary: "from-pink-500 via-rose-500 to-yellow-500",
-          secondary: "bg-pink-500/20",
-          innerGlow: "shadow-[0_0_55px_20px_rgba(236,72,153,0.35)]",
-          border: "border-pink-500/30",
-          ripple: "rgba(236, 72, 153, 0.45)",
-        };
-      case "calm":
-      default:
-        if (voice === "Bella") {
-          return {
-            primary: "from-violet-500 via-purple-600 to-fuchsia-600",
-            secondary: "bg-purple-500/20",
-            innerGlow: "shadow-[0_0_50px_20px_rgba(168,85,247,0.35)]",
-            border: "border-purple-500/30",
-            ripple: "rgba(168, 85, 247, 0.45)",
-          };
-        } else if (voice === "Rachel") {
-          return {
-            primary: "from-cyan-400 via-teal-500 to-blue-600",
-            secondary: "bg-cyan-500/20",
-            innerGlow: "shadow-[0_0_50px_20px_rgba(6,182,212,0.35)]",
-            border: "border-cyan-500/30",
-            ripple: "rgba(6, 182, 212, 0.45)",
-          };
-        } else {
-          return {
-            primary: "from-blue-600 via-indigo-700 to-cyan-700",
-            secondary: "bg-blue-600/20",
-            innerGlow: "shadow-[0_0_50px_20px_rgba(37,99,235,0.35)]",
-            border: "border-blue-500/30",
-            ripple: "rgba(37, 99, 235, 0.45)",
-          };
-        }
-    }
-  };
+  // Unified emotional color mapping - desaturated to a luxurious 65-75% for ultimate dark space elegance
+  const baseHue = (activeParams.particleColorRange[0] + activeParams.particleColorRange[1]) / 2;
+  
+  const primaryGradient = `linear-gradient(135deg, hsl(${activeParams.particleColorRange[0]}, 75%, 52%), hsl(${baseHue}, 70%, 46%), hsl(${activeParams.particleColorRange[1]}, 65%, 40%))`;
+  const secondaryBg = `hsla(${baseHue}, 70%, 52%, 0.12)`;
+  const borderStyle = `1px solid hsla(${baseHue}, 70%, 50%, ${0.20 * activeParams.orbGlowBrightness * glowDim})`;
+  
+  // High-fidelity wide volumetric glow falloff (spread is minimized, blur is maximized)
+  const shadowGlow = `0 0 110px ${6 * activeParams.orbPulseIntensity}px hsla(${baseHue}, 70%, 50%, ${0.28 * activeParams.orbGlowBrightness * glowDim * (1 + volume * 0.4)})`;
+  const rippleColor = `hsla(${baseHue}, 70%, 50%, ${0.30 * activeParams.orbGlowBrightness * glowDim})`;
 
-  const currentTheme = getOrbTheme();
-
-  // Variations for the inner morphing fluid shapes
+  // Variations for the inner morphing fluid shapes (slowed down for organic breathing)
   const morphVariants: Variants = {
     listening: {
-      borderRadius: ["42% 58% 70% 30% / 45% 45% 55% 55%", "70% 30% 52% 48% / 60% 40% 60% 40%", "42% 58% 70% 30% / 45% 45% 55% 55%"],
-      scale: [0.95, 1.05, 0.95],
-      rotate: [0, 120, 360],
+      borderRadius: ["42% 58% 70% 30% / 45% 45% 55% 55%", "60% 40% 55% 45% / 55% 45% 55% 45%", "42% 58% 70% 30% / 45% 45% 55% 55%"],
+      scale: [0.96, 1.04, 0.96],
+      rotate: [0, 90, 360],
       transition: {
-        duration: emotion === "excited" ? 4 : 8,
+        duration: (activeParams.orbBreathingSpeed / 1000) * 2.4, // Breathing speed scales dynamic fluid wave rate
+        repeat: Infinity,
+        ease: "easeInOut" as const,
+      },
+    },
+    reflecting: {
+      borderRadius: ["50% 50% 50% 50%", "48% 52% 48% 52%", "50% 50% 50% 50%"],
+      scale: [0.94, 0.97, 0.94], // Shrinks slightly to look focused
+      rotate: [0, 30, 0],
+      transition: {
+        duration: (activeParams.orbBreathingSpeed / 1000) * pauseParams.breathSlowFactor, // Meditative breathing duration
         repeat: Infinity,
         ease: "easeInOut" as const,
       },
     },
     thinking: {
-      borderRadius: ["30% 70% 40% 60% / 50% 60% 40% 50%", "60% 40% 60% 40% / 40% 60% 50% 60%", "30% 70% 40% 60% / 50% 60% 40% 50%"],
-      scale: [0.92, 1.02, 0.92],
+      borderRadius: ["35% 65% 45% 55% / 45% 55% 45% 55%", "55% 45% 55% 45% / 45% 55% 50% 50%", "35% 65% 45% 55% / 45% 55% 45% 55%"],
+      scale: [0.94, 1.01, 0.94],
       rotate: [360, 180, 0],
       transition: {
-        duration: 3.5,
+        duration: 4.8,
         repeat: Infinity,
         ease: "easeInOut" as const,
       },
     },
     speaking: {
-      borderRadius: ["50% 50% 50% 50%", "45% 55% 48% 52%", "55% 45% 52% 48%", "50% 50% 50% 50%"],
-      scale: 1 + volume * 0.28,
+      borderRadius: ["50% 50% 50% 50%", "47% 53% 49% 51%", "53% 47% 51% 49%", "50% 50% 50% 50%"],
+      scale: 1 + volume * 0.22,
       rotate: [0, 90, 180, 270, 360],
       transition: {
-        duration: emotion === "excited" ? 1.0 : 1.6,
+        duration: (activeParams.orbBreathingSpeed / 1000) * 0.35,
         repeat: Infinity,
         ease: "linear" as const,
       },
@@ -150,77 +82,89 @@ export default function MicOrb({
 
   return (
     <div className="relative flex items-center justify-center select-none echo-orb-wrapper">
-      {/* Cinematic Ambient Pulse Rings from Mockup */}
-      <div className="pulse-ring" style={{ animationDelay: "0s" }} />
-      <div className="pulse-ring" style={{ animationDelay: "2s" }} />
-      <div className="pulse-ring" style={{ animationDelay: "4s" }} />
+      {/* Ambient Particle swarm centered exclusively around the Orb core */}
+      <div className="absolute w-[560px] h-[560px] pointer-events-none -z-20 flex items-center justify-center">
+        <OrbParticleField state={state} volume={volume} />
+      </div>
 
-      {/* Outer Glow Halo Ring (Atmospheric pulse & micro glow fluctuations) */}
+      {/* Cinematic Ambient Pulse Rings (Very faint, purely atmospheric) */}
+      <div className="pulse-ring opacity-15" style={{ animationDelay: "0s", borderColor: rippleColor }} />
+      <div className="pulse-ring opacity-10" style={{ animationDelay: "3.5s", borderColor: rippleColor }} />
+
+      {/* Volumetric Soft Glow Falloff Halo */}
       <motion.div
-        className={`absolute rounded-full w-72 h-72 blur-3xl transition-all duration-1000 -z-10 ${currentTheme.innerGlow}`}
+        className="absolute rounded-full w-64 h-64 blur-[96px] transition-all duration-1000 -z-10"
+        style={{ boxShadow: shadowGlow }}
         animate={{
-          scale: state === "speaking" ? 1.05 + volume * 0.50 : [1, 1.04, 1],
-          opacity: state === "speaking" ? 0.75 + volume * 0.25 : [0.45, 0.65, 0.45], // Micro glow fluctuations sync
+          scale: state === "speaking" ? 1.04 + volume * 0.40 : [1, 1.03, 1],
+          opacity: state === "speaking" ? 0.65 + volume * 0.20 : [0.40, 0.55, 0.40],
         }}
         transition={
           state === "speaking"
             ? { duration: 0.08 }
             : {
-              duration: emotion === "excited" ? 2.0 : emotion === "reflective" ? 4.5 : 3.2,
-              repeat: Infinity,
-              ease: "easeInOut",
-            }
+                duration: (activeParams.orbBreathingSpeed / 1000) * 1.4,
+                repeat: Infinity,
+                ease: "easeInOut",
+              }
         }
       />
 
-      {/* Floating Orbital Interactive Container (Step 5: Organic idle breathing cycle) */}
+      {/* Floating Organic Core Container */}
       <motion.div
         onClick={onClick}
-        whileHover={{ scale: 1.03 }}
-        whileTap={{ scale: 0.97 }}
-        className="relative w-56 h-56 md:w-64 md:h-64 rounded-full flex items-center justify-center cursor-pointer group"
+        whileHover={{ scale: 1.015 }}
+        whileTap={{ scale: 0.985 }}
+        className="relative w-52 h-52 md:w-60 md:h-60 rounded-full flex items-center justify-center cursor-pointer group"
         initial={{ y: 0 }}
         animate={{
-          y: state === "speaking" ? 0 : isDemoMode ? [-8, 8, -8] : [-4, 4, -4],
-          scale: state === "speaking" ? 1 + volume * 0.08 : isDemoMode ? [1.0, 1.055, 1.0] : [1.0, 1.025, 1.0], // Organic idle breathing cycle
+          y: state === "speaking" ? 0 : isDemoMode ? [-6, 6, -6] : isReflecting ? [-1.2, 1.2, -1.2] : [-3, 3, -3],
+          scale: state === "speaking" ? 1 + volume * 0.06 : isDemoMode ? [1.0, 1.035, 1.0] : isReflecting ? [0.96, 0.98, 0.96] : [1.0, 1.015, 1.0], // Highly steady natural respiration
         }}
         transition={{
           y: {
-            duration: isDemoMode ? 9.0 : (emotion === "excited" ? 3.5 : emotion === "reflective" ? 6.5 : 5.0),
+            duration: isReflecting ? (activeParams.orbBreathingSpeed / 1000) * pauseParams.breathSlowFactor : isDemoMode ? 12.0 : (activeParams.orbBreathingSpeed / 1000) * 2.2,
             repeat: Infinity,
             ease: "easeInOut" as const,
           },
           scale: state === "speaking"
             ? { duration: 0.08 }
             : {
-              duration: isDemoMode ? 6.0 : (emotion === "excited" ? 2.2 : emotion === "reflective" ? 4.5 : 3.5),
-              repeat: Infinity,
-              ease: "easeInOut" as const,
-            }
+                duration: isReflecting ? (activeParams.orbBreathingSpeed / 1000) * pauseParams.breathSlowFactor : isDemoMode ? 8.0 : (activeParams.orbBreathingSpeed / 1000) * 1.5,
+                repeat: Infinity,
+                ease: "easeInOut" as const,
+              }
         }}
       >
         {/* Layer 1: Ambient Orbit Ring (Thick Glowing Edge) */}
-        <div className={`absolute inset-0 rounded-full bg-gradient-to-tr ${currentTheme.primary} opacity-30 blur-md group-hover:opacity-45 transition-all duration-1000`} />
+        <div 
+          className="absolute inset-0 rounded-full opacity-20 blur-md group-hover:opacity-30 transition-all duration-1000"
+          style={{ background: primaryGradient }}
+        />
 
         {/* Layer 2: Rotating Ring Border */}
         <motion.div
-          className={`absolute -inset-[2px] rounded-full bg-gradient-to-r ${currentTheme.primary} -z-10 opacity-70`}
-          style={{ padding: "2px" }}
+          className="absolute -inset-[1.5px] rounded-full -z-10 opacity-40"
+          style={{ padding: "1.5px", background: primaryGradient }}
           animate={{ rotate: 360 }}
           transition={{
-            duration: state === "thinking" ? 5 : state === "speaking" ? 1.3 : 11,
+            duration: state === "thinking" ? 8 : state === "speaking" ? 1.8 : 16,
             repeat: Infinity,
             ease: "linear" as const,
           }}
         />
 
         {/* Layer 3: Glassmorphic Core */}
-        <div className={`absolute inset-[3px] rounded-full bg-[#030303]/75 backdrop-blur-2xl border ${currentTheme.border} transition-colors duration-1000 flex items-center justify-center overflow-hidden z-10`}>
+        <div 
+          className="absolute inset-[2.5px] rounded-full bg-[#020204]/90 backdrop-blur-3xl transition-colors duration-1000 flex items-center justify-center overflow-hidden z-10"
+          style={{ border: borderStyle }}
+        >
           {/* Layer 4: Morphing Liquid Fluid Core */}
           <AnimatePresence mode="wait">
             <motion.div
-              key={`${state}-${emotion}-${voice}`}
-              className={`absolute inset-4 rounded-full bg-gradient-to-br ${currentTheme.primary} opacity-[0.16] blur-lg`}
+              key={`${state}-${activeEmotion}`}
+              className="absolute inset-4 rounded-full opacity-[0.10] blur-md"
+              style={{ background: primaryGradient }}
               variants={morphVariants}
               animate={state}
             />
@@ -229,85 +173,87 @@ export default function MicOrb({
           {/* Morphing fluid borders for a volumetric liquid glass aesthetic */}
           <AnimatePresence mode="wait">
             <motion.div
-              key={`border-${state}-${emotion}-${voice}`}
-              className={`absolute inset-8 rounded-full border border-dashed border-white/5 bg-gradient-to-tr ${currentTheme.primary} opacity-[0.08]`}
+              key={`border-${state}-${activeEmotion}`}
+              className="absolute inset-8 rounded-full border border-dashed border-white/5 opacity-[0.05]"
+              style={{ background: primaryGradient }}
               animate={{
                 rotate: state === "thinking" ? -360 : 360,
-                scale: state === "speaking" ? 0.95 + volume * 0.2 : [0.95, 1.02, 0.95],
+                scale: state === "speaking" ? 0.96 + volume * 0.15 : [0.96, 1.01, 0.96],
               }}
               transition={{
-                duration: state === "speaking" ? 0.18 : 14,
+                duration: state === "speaking" ? 0.22 : 18,
                 repeat: Infinity,
                 ease: "linear" as const,
               }}
             />
           </AnimatePresence>
 
-          {/* Subtle Ambient Refraction Glare */}
-          <div className="absolute top-0 left-0 w-full h-full rounded-full bg-gradient-to-b from-white/10 to-transparent pointer-events-none z-20" />
+          {/* Subtle Refraction Glare */}
+          <div className="absolute top-0 left-0 w-full h-full rounded-full bg-gradient-to-b from-white/5 to-transparent pointer-events-none z-20" />
 
           {/* Central Microphone Icon & Pulsing Halo */}
           <div className="relative z-30 flex flex-col items-center justify-center">
             {/* Reactive Inner Glow Ring */}
             <motion.div
-              className={`absolute w-16 h-16 rounded-full ${currentTheme.secondary} blur-md`}
+              className="absolute w-14 h-14 rounded-full blur-md"
+              style={{ background: secondaryBg }}
               animate={{
-                scale: state === "speaking" ? 1.0 + volume * 0.9 : [1, 1.15, 1],
-                opacity: state === "listening" ? [0.4, 0.7, 0.4] : 0.6,
+                scale: state === "speaking" ? 1.0 + volume * 0.6 : [1, 1.10, 1],
+                opacity: state === "listening" ? [0.3, 0.5, 0.3] : 0.4,
               }}
               transition={
                 state === "speaking"
                   ? { duration: 0.1 }
                   : {
-                    duration: 2.2,
-                    repeat: Infinity,
-                    ease: "easeInOut" as const,
-                  }
+                      duration: 2.8,
+                      repeat: Infinity,
+                      ease: "easeInOut" as const,
+                    }
               }
             />
 
             {/* Glowing Icon */}
             <motion.div
               animate={{
-                scale: state === "speaking" ? 1 + volume * 0.15 : 1,
+                scale: state === "speaking" ? 1 + volume * 0.10 : 1,
               }}
-              className="text-white drop-shadow-[0_0_12px_rgba(255,255,255,0.7)] group-hover:scale-110 transition-transform duration-300"
+              className="text-white opacity-70 group-hover:opacity-100 transition-opacity duration-300"
             >
-              <Mic className="w-8 h-8 md:w-9 md:h-9" strokeWidth={1.5} />
+              <Mic className="w-7 h-7 md:w-8 md:h-8 text-neutral-300" strokeWidth={1.2} />
             </motion.div>
           </div>
         </div>
 
-        {/* Hover/Active Ambient Wave Rings */}
+        {/* Dynamic Wave Rings on active voice states */}
         <AnimatePresence>
           {state === "listening" && (
             <>
               <motion.div
-                className="absolute inset-0 rounded-full border border-white/10"
-                style={{ borderColor: currentTheme.ripple }}
-                initial={{ scale: 1, opacity: 0.8 }}
-                animate={{ scale: 1.3, opacity: 0 }}
+                className="absolute inset-0 rounded-full border opacity-50"
+                style={{ borderColor: rippleColor }}
+                initial={{ scale: 1, opacity: 0.5 }}
+                animate={{ scale: 1.25, opacity: 0 }}
                 exit={{ opacity: 0 }}
-                transition={{ duration: 1.8, repeat: Infinity, ease: "easeOut" as const }}
+                transition={{ duration: 2.2, repeat: Infinity, ease: "easeOut" as const }}
               />
               <motion.div
-                className="absolute inset-0 rounded-full border border-white/5"
-                style={{ borderColor: currentTheme.ripple }}
-                initial={{ scale: 1, opacity: 0.6 }}
-                animate={{ scale: 1.45, opacity: 0 }}
+                className="absolute inset-0 rounded-full border opacity-30"
+                style={{ borderColor: rippleColor }}
+                initial={{ scale: 1, opacity: 0.4 }}
+                animate={{ scale: 1.38, opacity: 0 }}
                 exit={{ opacity: 0 }}
-                transition={{ duration: 1.8, delay: 0.6, repeat: Infinity, ease: "easeOut" as const }}
+                transition={{ duration: 2.2, delay: 0.8, repeat: Infinity, ease: "easeOut" as const }}
               />
             </>
           )}
           {state === "speaking" && (
             <motion.div
-              className="absolute inset-0 rounded-full border"
-              style={{ borderColor: currentTheme.ripple }}
-              initial={{ scale: 1, opacity: 0.9 }}
-              animate={{ scale: 1.25 + volume * 0.4, opacity: 0 }}
+              className="absolute inset-0 rounded-full border opacity-60"
+              style={{ borderColor: rippleColor }}
+              initial={{ scale: 1, opacity: 0.6 }}
+              animate={{ scale: 1.18 + volume * 0.3, opacity: 0 }}
               exit={{ opacity: 0 }}
-              transition={{ duration: 0.7, repeat: Infinity, ease: "easeOut" as const }}
+              transition={{ duration: 0.8, repeat: Infinity, ease: "easeOut" as const }}
             />
           )}
         </AnimatePresence>

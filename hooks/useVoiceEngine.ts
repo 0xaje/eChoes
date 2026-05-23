@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useEmotionFlow } from "@/lib/emotionFlowDirector";
+import { getPauseParameters } from "@/lib/emotionalPauseEngine";
 
 // Declare global types for webkitSpeechRecognition API
 declare global {
@@ -12,7 +14,7 @@ declare global {
   }
 }
 
-export type VoiceState = "idle" | "listening" | "thinking" | "speaking";
+export type VoiceState = "idle" | "listening" | "reflecting" | "thinking" | "speaking";
 
 export interface Message {
   role: "user" | "assistant";
@@ -30,7 +32,7 @@ export function useVoiceEngine() {
 
   // Emotional Memory & Presence additions
   const [sessionId, setSessionId] = useState<string>("");
-  const [currentEmotion, setCurrentEmotion] = useState<string>("calm");
+  const { emotion: currentEmotion, activeParams, updateEmotion } = useEmotionFlow();
   const [currentVoice, setCurrentVoice] = useState<string>("Bella");
   const [recentMemories, setRecentMemories] = useState<any[]>([]);
 
@@ -49,11 +51,19 @@ export function useVoiceEngine() {
   const fadeIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const networkRetryCountRef = useRef(0);
   const isNetworkRecoveringRef = useRef(false);
+  const isSpeechRecognitionRunningRef = useRef(false);
 
   // Ref synchronizers to ensure web Speech API always reads fresh states
   const emotionRef = useRef<string>("calm");
   const voiceRef = useRef<string>("Bella");
   const visualizerIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const pendingTtsTextRef = useRef<string>("");
+  const utteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
+  const activeParamsRef = useRef(activeParams);
+
+  useEffect(() => {
+    activeParamsRef.current = activeParams;
+  }, [activeParams]);
 
   // Synthesizer Engine References for Cinematic Atmospheric Drone
   const subOscRef = useRef<OscillatorNode | null>(null);
@@ -75,6 +85,26 @@ export function useVoiceEngine() {
     }
   }, [currentEmotion, isEngineActive]);
 
+  // Real-time smooth sliding of filter frequency and volume from the emotion flow lerp brain
+  useEffect(() => {
+    try {
+      const audioContext = audioContextRef.current;
+      const synthFilter = synthFilterRef.current;
+      const synthGain = synthGainRef.current;
+      if (!audioContext || !synthFilter || !synthGain || !isEngineActive) return;
+
+      const now = audioContext.currentTime;
+      synthFilter.frequency.cancelScheduledValues(now);
+      synthFilter.frequency.linearRampToValueAtTime(activeParams.droneFilterFrequency, now + 0.15);
+
+      // Only adjust drone volume if not currently in ducked state
+      if (state !== "listening" && state !== "thinking") {
+        synthGain.gain.cancelScheduledValues(now);
+        synthGain.gain.linearRampToValueAtTime(activeParams.droneVolume, now + 0.2);
+      }
+    } catch (e) {}
+  }, [activeParams.droneFilterFrequency, activeParams.droneVolume, isEngineActive, state]);
+
   // Duck synth drone volume when user is speaking to optimize recognition clarity
   useEffect(() => {
     try {
@@ -88,6 +118,9 @@ export function useVoiceEngine() {
       if (state === "listening") {
         // Muffle and duck slightly so mic recognition is perfect
         synthGain.gain.linearRampToValueAtTime(0.04, now + 0.8);
+      } else if (state === "reflecting") {
+        // Soften ambient drone volume to 0.02 during reflection hesitation
+        synthGain.gain.linearRampToValueAtTime(0.02, now + 0.6);
       } else if (state === "thinking") {
         // Swell up during thinking state to create anticipatory tension/warmth
         synthGain.gain.linearRampToValueAtTime(0.24, now + 1.2);
@@ -136,6 +169,15 @@ export function useVoiceEngine() {
       stopEngine();
     };
   }, []);
+
+  // Speech Recognition Lifecycle Controller: Instantiates a fresh instance when listening, stops when speaking/thinking
+  useEffect(() => {
+    if (isEngineActive && state === "listening") {
+      startSpeechRecognition();
+    } else {
+      stopSpeechRecognition();
+    }
+  }, [isEngineActive, state]);
 
   // Warm up speechSynthesis voices to ensure they are fully populated in browser cache
   useEffect(() => {
@@ -257,6 +299,7 @@ export function useVoiceEngine() {
     window.speechSynthesis.cancel();
     
     const utterance = new SpeechSynthesisUtterance(text);
+    utteranceRef.current = utterance; // Keep a strong reference to prevent garbage collection!
     
     // Choose high-quality voice depending on personality
     const voices = window.speechSynthesis.getVoices();
@@ -331,23 +374,9 @@ export function useVoiceEngine() {
       console.log(`🗣️ WebSpeech selected voice: ${selectedVoice.name} (${selectedVoice.lang})`);
     }
     
-    // Adjust pitch and rate depending on emotion
-    if (emotionRef.current === "excited" || emotionRef.current === "playful") {
-      utterance.rate = 1.1;
-      utterance.pitch = 1.05;
-    } else if (emotionRef.current === "melancholic" || emotionRef.current === "lonely") {
-      utterance.rate = 0.85;
-      utterance.pitch = 0.95;
-    } else if (emotionRef.current === "reflective") {
-      utterance.rate = 0.9;
-      utterance.pitch = 0.98;
-    } else if (emotionRef.current === "anxious") {
-      utterance.rate = 0.88;
-      utterance.pitch = 1.0;
-    } else {
-      utterance.rate = 0.98;
-      utterance.pitch = 1.0;
-    }
+    // Adjust pitch and rate depending on smoothly lerping emotion flow parameters
+    utterance.rate = activeParamsRef.current.voiceSpeechRate;
+    utterance.pitch = activeParamsRef.current.voiceSpeechPitch;
     
     utterance.onstart = () => {
       setState("speaking");
@@ -355,21 +384,17 @@ export function useVoiceEngine() {
     };
     
     utterance.onend = () => {
+      utteranceRef.current = null;
       stopSimulatedVisualizer();
       setAiTranscript("");
       setTranscript("");
       setState("listening");
-      if (isEngineActiveRef.current && recognitionRef.current) {
-        try { recognitionRef.current.start(); } catch (e) {}
-      }
     };
 
     utterance.onerror = () => {
+      utteranceRef.current = null;
       stopSimulatedVisualizer();
       setState("listening");
-      if (isEngineActiveRef.current && recognitionRef.current) {
-        try { recognitionRef.current.start(); } catch (e) {}
-      }
     };
     
     window.speechSynthesis.speak(utterance);
@@ -585,13 +610,18 @@ export function useVoiceEngine() {
     } catch (e) {}
   };
 
-  // Initialize Speech Recognition
-  const initSpeechRecognition = () => {
+  // Resilient Fresh-Instance Speech Recognition Manager
+  const startSpeechRecognition = () => {
     if (typeof window === "undefined") return;
+
+    if (isSpeechRecognitionRunningRef.current) {
+      console.log("🎙️ Speech Recognition is already running. Skipping start request.");
+      return;
+    }
 
     const SpeechRecognitionClass = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!SpeechRecognitionClass) {
-      console.warn("Browser does not support Speech Recognition. Use Chrome or Safari.");
+      console.warn("🎙️ Browser does not support Speech Recognition.");
       return;
     }
 
@@ -601,17 +631,13 @@ export function useVoiceEngine() {
     recognition.lang = "en-US";
 
     recognition.onstart = () => {
-      console.log("Speech recognition started.");
-      networkRetryCountRef.current = 0;
-      isNetworkRecoveringRef.current = false;
-      if (stateRef.current === "idle" || stateRef.current === "speaking") {
-        setState("listening");
-      }
+      console.log("🎙️ Fresh Speech Recognition started successfully.");
+      isSpeechRecognitionRunningRef.current = true;
     };
 
     recognition.onresult = (event: any) => {
-      // Interruption Check: If the AI is speaking and we detect user speech, interrupt instantly!
-      if (stateRef.current === "speaking" && audioRef.current) {
+      // Interruption Check: If the AI is speaking, interrupt instantly!
+      if (stateRef.current === "speaking") {
         console.log("⚡ Interruption detected! Halting AI playback.");
         handleInterruption();
         return;
@@ -620,7 +646,8 @@ export function useVoiceEngine() {
       let interimTranscript = "";
       let finalTranscript = "";
 
-      for (let i = event.resultIndex; i < event.results.length; ++i) {
+      // Loop from 0 to capture full accumulated transcript in the current listening session
+      for (let i = 0; i < event.results.length; ++i) {
         if (event.results[i].isFinal) {
           finalTranscript += event.results[i][0].transcript;
         } else {
@@ -649,71 +676,63 @@ export function useVoiceEngine() {
 
     recognition.onerror = (event: any) => {
       const errorType = event.error;
+      isSpeechRecognitionRunningRef.current = false;
       
-      // Handle status events or normal conditions gracefully without printing console.error
-      if (errorType === "network") {
-        console.warn("Speech Recognition cloud connection Warning:", errorType);
-      } else if (errorType === "no-speech" || errorType === "aborted") {
-        console.log("Speech Recognition Status:", errorType);
-      } else {
-        console.error("Speech Recognition Error:", errorType);
+      if (errorType !== "no-speech" && errorType !== "aborted") {
+        console.warn("🎙️ Speech Recognition error event:", errorType);
       }
 
       if (errorType === "not-allowed") {
         setIsEngineActive(false);
         setState("idle");
-      } else if (errorType === "network") {
-        isNetworkRecoveringRef.current = true;
-        networkRetryCountRef.current += 1;
-        if (networkRetryCountRef.current > 3) {
-          console.warn("🚫 Speech recognition failed persistently (network error). Switching to manual keyboard fallback to save resources.");
-          isNetworkRecoveringRef.current = false;
-          return;
-        }
-        console.warn(`Speech recognition cloud connection offline (attempt ${networkRetryCountRef.current}/3). Scheduling automatic connection recovery in 2 seconds...`);
-        setTimeout(() => {
-          if (isEngineActiveRef.current && (stateRef.current === "listening" || stateRef.current === "idle")) {
-            try {
-              isNetworkRecoveringRef.current = false;
-              recognitionRef.current.start();
-              console.log("⚡ Auto-recovered speech recognition network tunnel successfully.");
-            } catch (e) {
-              isNetworkRecoveringRef.current = false;
-            }
-          } else {
-            isNetworkRecoveringRef.current = false;
-          }
-        }, 2000);
       }
     };
 
     recognition.onend = () => {
-      console.log("Speech recognition ended.");
+      console.log("🎙️ Speech Recognition instance ended.");
+      isSpeechRecognitionRunningRef.current = false;
       
-      // If we are currently in the middle of a network retry recovery sequence, defer to the scheduler
-      if (isNetworkRecoveringRef.current) {
-        console.log("Speech recognition ended due to network error. Deferring restart to auto-recovery scheduler.");
-        return;
-      }
-
-      // Auto-restart if engine is active and we are in listening or transition phases
-      if (isEngineActiveRef.current && (stateRef.current === "listening" || stateRef.current === "idle")) {
-        try {
-          recognitionRef.current.start();
-        } catch (e) {
-          // Backoff retry in 1 second if context lock was active
-          setTimeout(() => {
-            if (isEngineActiveRef.current && stateRef.current === "listening" && !isNetworkRecoveringRef.current) {
-              try {
-                recognitionRef.current.start();
-              } catch (err) {}
+      // Auto-restart with safe 100ms browser cooldown delay if we are supposed to be actively listening
+      if (isEngineActiveRef.current && stateRef.current === "listening") {
+        console.log("🔄 Auto-restarting Speech Recognition to keep session alive.");
+        setTimeout(() => {
+          if (isEngineActiveRef.current && stateRef.current === "listening" && !isSpeechRecognitionRunningRef.current) {
+            try {
+              recognition.start();
+              isSpeechRecognitionRunningRef.current = true;
+            } catch (e) {
+              console.warn("🎙️ Failed to auto-restart recognition in delayed retry:", e);
             }
-          }, 1000);
-        }
+          }
+        }, 100);
       }
     };
 
     recognitionRef.current = recognition;
+
+    try {
+      recognition.start();
+      isSpeechRecognitionRunningRef.current = true;
+    } catch (e) {
+      console.error("🎙️ Failed to start Speech Recognition instance:", e);
+      isSpeechRecognitionRunningRef.current = false;
+    }
+  };
+
+  const stopSpeechRecognition = () => {
+    if (recognitionRef.current) {
+      try {
+        // Null out callbacks to prevent side-effects during async browser teardown
+        recognitionRef.current.onstart = null;
+        recognitionRef.current.onresult = null;
+        recognitionRef.current.onerror = null;
+        recognitionRef.current.onend = null;
+        recognitionRef.current.stop();
+        console.log("🔇 Stale Speech Recognition instance stopped cleanly.");
+      } catch (e) {}
+      recognitionRef.current = null;
+      isSpeechRecognitionRunningRef.current = false;
+    }
   };
 
   // Initialize browser Web Audio APIs for real-time FFT visual analysis
@@ -734,12 +753,16 @@ export function useVoiceEngine() {
       setAiTranscript("");
       setTranscript("");
       setState("listening");
+    };
 
-      // Restart Speech Recognition if inactive
-      if (isEngineActiveRef.current && recognitionRef.current) {
-        try {
-          recognitionRef.current.start();
-        } catch (e) {}
+    audio.onerror = (e) => {
+      console.warn("⚠️ ElevenLabs audio stream load failed. Falling back to native browser speech synthesis.", e);
+      stopAudioAnalysis();
+      if (pendingTtsTextRef.current) {
+        speakWithNativeTTS(pendingTtsTextRef.current);
+        pendingTtsTextRef.current = ""; // Flush the ref
+      } else {
+        setState("listening");
       }
     };
 
@@ -833,12 +856,23 @@ export function useVoiceEngine() {
 
     const isAwakening = messageText === "[AWAKENING]";
 
-    setState("thinking");
     if (!isAwakening) {
       setTranscript(messageText);
+      setState("reflecting");
+      stateRef.current = "reflecting";
+
+      // Compute pause engine delays based on active emotion
+      const pauseParams = getPauseParameters(currentEmotion as any);
+      await new Promise((resolve) => setTimeout(resolve, pauseParams.preResponseDelayMs));
+
+      // Guard check: if the user clicked or interrupted reflection, abort dialogue generation
+      if (stateRef.current !== "reflecting") return;
     } else {
       setTranscript(""); // Keep user input transcript blank during cinematic wake sequence
     }
+
+    setState("thinking");
+    stateRef.current = "thinking";
 
     try {
       let updatedHistory = history;
@@ -870,7 +904,7 @@ export function useVoiceEngine() {
       const distilledMemory = chatData.distilledMemory;
 
       // 2. Reactively evolve emotional states globally
-      setCurrentEmotion(emotionalState);
+      updateEmotion(emotionalState as any);
       console.log(`🧠 [VoiceEngine] Emotion Detected: ${emotionalState}`);
 
       if (distilledMemory) {
@@ -896,6 +930,7 @@ export function useVoiceEngine() {
       if (chatData.isSimulated) {
         speakWithNativeTTS(replyText);
       } else if (audioRef.current) {
+        pendingTtsTextRef.current = replyText; // Store for fallback recovery
         audioRef.current.src = `/api/tts?text=${encodeURIComponent(replyText)}&voice=${currentVoice}&emotion=${emotionalState}`;
         audioRef.current.load();
         
@@ -967,7 +1002,6 @@ export function useVoiceEngine() {
     isEngineActiveRef.current = true;
 
     // Initialize DOM APIs dynamically on client action
-    if (!recognitionRef.current) initSpeechRecognition();
     if (!audioRef.current) initAudioEngine();
 
     // Step 4: Cinematic Awakening Sequence - set to thinking to morph centerpiece orb
@@ -980,7 +1014,7 @@ export function useVoiceEngine() {
         if (response.ok) {
           const data = await response.json();
           if (data.emotion) {
-            setCurrentEmotion(data.emotion);
+            updateEmotion(data.emotion as any);
             console.log(`🌌 Atmospheric mood resumed: ${data.emotion}`);
           }
           if (data.memories) {
@@ -1009,11 +1043,7 @@ export function useVoiceEngine() {
     isEngineActiveRef.current = false;
     isNetworkRecoveringRef.current = false;
 
-    if (recognitionRef.current) {
-      try {
-        recognitionRef.current.stop();
-      } catch (e) {}
-    }
+    stopSpeechRecognition();
 
     // Stop Web Audio drone
     stopAtmosphericDrone();
@@ -1052,6 +1082,6 @@ export function useVoiceEngine() {
     currentVoice,
     recentMemories,
     updateVoice,
-    setEmotion: setCurrentEmotion,
+    setEmotion: updateEmotion,
   };
 }

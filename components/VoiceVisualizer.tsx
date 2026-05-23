@@ -2,79 +2,38 @@
 
 import { motion, TargetAndTransition } from "framer-motion";
 import { useEffect, useState } from "react";
+import { useEmotionFlow } from "@/lib/emotionFlowDirector";
 
 interface VoiceVisualizerProps {
-  state: "listening" | "thinking" | "speaking";
+  state: "listening" | "thinking" | "speaking" | "idle" | "reflecting";
   audioLevels?: number[];
   averageAmplitude?: number;
-  emotion?: string;
-  voice?: string;
 }
 
 export default function VoiceVisualizer({
   state,
   audioLevels,
   averageAmplitude = 0,
-  emotion = "calm",
-  voice = "Bella"
 }: VoiceVisualizerProps) {
   const [barsCount] = useState(24);
   const [windowLoaded, setWindowLoaded] = useState(false);
+  const { activeParams } = useEmotionFlow();
 
   useEffect(() => {
     setWindowLoaded(true);
   }, []);
 
-  // Map state and emotion to spectacular glowing bar styling
-  const getBarColor = () => {
-    if (state === "thinking") {
-      return "bg-purple-500/70 shadow-[0_0_10px_rgba(168,85,247,0.5)]";
-    }
+  // Compute dynamic color waves derived dynamically from lerped HSL ranges
+  const baseHue = (activeParams.particleColorRange[0] + activeParams.particleColorRange[1]) / 2;
+  const waveColors = [
+    `hsl(${activeParams.particleColorRange[0]}, 85%, 55%)`,
+    `hsl(${activeParams.particleColorRange[1]}, 80%, 45%)`
+  ];
 
-    switch (emotion) {
-      case "melancholic":
-        return "bg-violet-600/70 shadow-[0_0_12px_rgba(139,92,246,0.5)]";
-      case "excited":
-        return "bg-cyan-400/80 shadow-[0_0_15px_rgba(6,182,212,0.7)]";
-      case "reflective":
-        return "bg-amber-400/75 shadow-[0_0_12px_rgba(245,158,11,0.55)]";
-      case "anxious":
-        return "bg-slate-400/60 shadow-[0_0_10px_rgba(148,163,184,0.4)]";
-      case "lonely":
-        return "bg-neutral-500/50 shadow-[0_0_8px_rgba(163,163,163,0.3)]";
-      case "playful":
-        return "bg-rose-400/80 shadow-[0_0_14px_rgba(251,113,133,0.65)]";
-      case "calm":
-      default:
-        if (voice === "Bella") {
-          return "bg-purple-500/75 shadow-[0_0_12px_rgba(168,85,247,0.55)]";
-        } else if (voice === "Rachel") {
-          return "bg-cyan-500/75 shadow-[0_0_12px_rgba(6,182,212,0.55)]";
-        } else {
-          return "bg-blue-500/75 shadow-[0_0_12px_rgba(59,130,246,0.55)]";
-        }
-    }
+  const barGlow = {
+    bg: `linear-gradient(to top, hsla(${activeParams.particleColorRange[0]}, 85%, 35%, 0.2), hsl(${activeParams.particleColorRange[1]}, 85%, 65%))`,
+    shadow: `0 0 ${8 * activeParams.orbPulseIntensity}px hsl(${activeParams.particleColorRange[1]}, 85%, 65%)`
   };
-
-  const getWaveColor = () => {
-    if (state === "thinking") return ["#a855f7", "#e879f9"];
-
-    switch (emotion) {
-      case "melancholic": return ["#8b5cf6", "#4f46e5"];
-      case "excited": return ["#06b6d4", "#ec4899"];
-      case "reflective": return ["#f59e0b", "#d97706"];
-      case "anxious": return ["#94a3b8", "#64748b"];
-      case "lonely": return ["#6b7280", "#4b5563"];
-      case "playful": return ["#fb7185", "#fbbf24"];
-      case "calm":
-      default:
-        if (voice === "Bella") return ["#a855f7", "#c084fc"];
-        if (voice === "Rachel") return ["#06b6d4", "#0ea5e9"];
-        return ["#3b82f6", "#2563eb"];
-    }
-  };
-
-  const waveColors = getWaveColor();
 
   const bars = Array.from({ length: barsCount }, (_, i) => i);
 
@@ -84,13 +43,12 @@ export default function VoiceVisualizer({
     const distanceToCenter = Math.abs(index - midPoint);
     const centerFactor = Math.max(0.1, 1 - distanceToCenter / (barsCount * 0.6));
 
-    // Slow pacing multipliers based on emotional energy
-    const speedFactor = emotion === "excited" ? 0.65 : emotion === "melancholic" ? 1.6 : 1.0;
+    // Dynamic pace speed linked directly to active emotion flow
+    const durationMultiplier = activeParams.orbBreathingSpeed / 3000;
 
     switch (state) {
       case "listening":
         // Cinematic idle resting breathing wave (Step 5)
-        // Propagates a gorgeous slowly breathing sine-wave drift when silent
         return {
           height: [
             `${4 + Math.sin(index * 0.35) * 2.5}px`,
@@ -98,10 +56,21 @@ export default function VoiceVisualizer({
             `${4 + Math.sin(index * 0.35) * 2.5}px`,
           ],
           transition: {
-            duration: (2.0 + (index % 3) * 0.2) * speedFactor,
+            duration: (2.0 + (index % 3) * 0.2) * durationMultiplier,
             repeat: Infinity,
             ease: "easeInOut" as const,
             delay: index * 0.04,
+          },
+        };
+      case "reflecting":
+        // Quiet, flatline meditative resting state during silence
+        return {
+          height: ["2px", "4px", "2px"],
+          transition: {
+            duration: 3.5,
+            repeat: Infinity,
+            ease: "easeInOut" as const,
+            delay: index * 0.08,
           },
         };
       case "thinking":
@@ -112,7 +81,7 @@ export default function VoiceVisualizer({
             `${8 + Math.sin(index * 0.4) * 8}px`,
           ],
           transition: {
-            duration: 1.8,
+            duration: 1.8 * durationMultiplier,
             repeat: Infinity,
             ease: "easeInOut" as const,
             delay: index * 0.04,
@@ -126,21 +95,26 @@ export default function VoiceVisualizer({
             "6px",
           ],
           transition: {
-            duration: 0.45 + Math.random() * 0.45,
+            duration: (0.45 + Math.random() * 0.45) * durationMultiplier,
             repeat: Infinity,
             ease: "easeInOut" as const,
             delay: (index % 3) * 0.07,
           },
         };
       default:
-        return { height: "6px" };
+        return { height: "4px" };
     }
   };
 
   return (
     <div className="relative w-full max-w-lg flex flex-col items-center justify-center py-6 px-4">
       {/* Dynamic Glow Layer Behind Visualizer */}
-      <div className="absolute inset-0 bg-gradient-to-r from-transparent via-indigo-500/5 to-transparent blur-xl h-24" />
+      <div 
+        className="absolute inset-0 blur-xl h-24 transition-colors duration-1000 opacity-[--ui-glow-opacity]"
+        style={{
+          background: `radial-gradient(circle, hsla(${baseHue}, 85%, 55%, 0.08) 0%, transparent 70%)`
+        }}
+      />
 
       {/* Layer 1: Ambient Siri-style fluid wavy paths behind the bars */}
       <div className="absolute w-full h-16 opacity-30 select-none pointer-events-none z-0">
@@ -181,7 +155,7 @@ export default function VoiceVisualizer({
                   }
             }
             transition={{
-              duration: state === "speaking" ? 0.2 : emotion === "excited" ? 2.5 : 4.5,
+              duration: state === "speaking" ? 0.2 : (activeParams.orbBreathingSpeed / 1000) * 1.5,
               repeat: Infinity,
               ease: "easeInOut" as const,
             }}
@@ -213,7 +187,7 @@ export default function VoiceVisualizer({
                 }
             }
             transition={{
-              duration: state === "speaking" ? 0.25 : emotion === "excited" ? 4 : 7,
+              duration: state === "speaking" ? 0.25 : (activeParams.orbBreathingSpeed / 1000) * 2.2,
               repeat: Infinity,
               ease: "easeInOut" as const,
             }}
@@ -230,39 +204,10 @@ export default function VoiceVisualizer({
               ? `${4 + (audioLevels[index] || 0) * 0.85}px`
               : undefined;
 
-            const barGlow = (() => {
-              if (state === "thinking") {
-                return { bg: "linear-gradient(to top, rgba(168, 85, 247, 0.2), #e879f9)", shadow: "0 0 8px #e879f9" };
-              }
-              switch (emotion) {
-                case "melancholic":
-                  return { bg: "linear-gradient(to top, rgba(139, 92, 246, 0.2), #a78bfa)", shadow: "0 0 8px #a78bfa" };
-                case "excited":
-                  return { bg: "linear-gradient(to top, rgba(6, 182, 212, 0.2), #f472b6)", shadow: "0 0 10px #f472b6" };
-                case "reflective":
-                  return { bg: "linear-gradient(to top, rgba(245, 158, 11, 0.2), #fbbf24)", shadow: "0 0 8px #fbbf24" };
-                case "anxious":
-                  return { bg: "linear-gradient(to top, rgba(148, 163, 184, 0.2), #94a3b8)", shadow: "0 0 6px #94a3b8" };
-                case "lonely":
-                  return { bg: "linear-gradient(to top, rgba(163, 163, 163, 0.15), #a3a3a3)", shadow: "0 0 6px #a3a3a3" };
-                case "playful":
-                  return { bg: "linear-gradient(to top, rgba(251, 113, 133, 0.2), #fb7185)", shadow: "0 0 10px #fb7185" };
-                case "calm":
-                default:
-                  if (voice === "Bella") {
-                    return { bg: "linear-gradient(to top, rgba(168, 85, 247, 0.2), #c084fc)", shadow: "0 0 8px #c084fc" };
-                  } else if (voice === "Rachel") {
-                    return { bg: "linear-gradient(to top, rgba(0, 241, 253, 0.2), #00f1fd)", shadow: "0 0 10px #00f1fd" };
-                  } else {
-                    return { bg: "linear-gradient(to top, rgba(59, 130, 246, 0.2), #60a5fa)", shadow: "0 0 8px #60a5fa" };
-                  }
-              }
-            })();
-
             return (
               <motion.div
                 key={index}
-                className="w-[2.5px] min-h-[4px] rounded-[1px] transition-all duration-1000"
+                className="w-[2.5px] min-h-[4px] rounded-[1px]"
                 animate={realHeight ? { height: realHeight } : getBarAnimation(index)}
                 transition={realHeight ? { type: "spring", stiffness: 350, damping: 25 } : undefined}
                 style={{

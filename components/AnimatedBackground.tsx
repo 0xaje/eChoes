@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from "react";
 import { motion } from "framer-motion";
+import { useEmotionFlow } from "@/lib/emotionFlowDirector";
 
 interface Particle {
   x: number;
@@ -14,62 +15,16 @@ interface Particle {
   color: string;
 }
 
-interface AnimatedBackgroundProps {
-  emotion: string;
-  voice: string;
-}
-
-export default function AnimatedBackground({ emotion = "calm", voice = "Bella" }: AnimatedBackgroundProps) {
+export default function AnimatedBackground() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const mouseRef = useRef({ x: 0, y: 0, targetX: 0, targetY: 0 });
-  const emotionRef = useRef(emotion);
-  const voiceRef = useRef(voice);
+  const { activeParams } = useEmotionFlow();
+  
+  const activeParamsRef = useRef(activeParams);
 
   useEffect(() => {
-    emotionRef.current = emotion;
-    voiceRef.current = voice;
-  }, [emotion, voice]);
-
-  // Map emotions to beautiful particle color sets
-  const getParticleColors = (emo: string, vName: string): string[] => {
-    switch (emo) {
-      case "melancholic":
-        return ["rgba(99, 102, 241, 0.22)", "rgba(129, 140, 248, 0.18)", "rgba(165, 180, 252, 0.12)"]; // Violet Indigo
-      case "excited":
-        return ["rgba(236, 72, 153, 0.35)", "rgba(244, 63, 94, 0.3)", "rgba(6, 182, 212, 0.35)"]; // Bright Cyan, Pink
-      case "reflective":
-        return ["rgba(16, 185, 129, 0.22)", "rgba(5, 150, 105, 0.18)", "rgba(110, 231, 183, 0.12)"]; // Teal/Green
-      case "anxious":
-        return ["rgba(217, 119, 6, 0.2)", "rgba(245, 158, 11, 0.15)", "rgba(148, 163, 184, 0.18)"]; // Warm Amber
-      case "lonely":
-        return ["rgba(59, 130, 246, 0.15)", "rgba(100, 116, 139, 0.15)", "rgba(148, 163, 184, 0.1)"]; // Misty Blue/Grey
-      case "playful":
-        return ["rgba(244, 63, 94, 0.3)", "rgba(245, 158, 11, 0.25)", "rgba(236, 72, 153, 0.25)"]; // Rose, Gold, Pink
-      case "calm":
-      default:
-        if (vName === "Bella") {
-          return ["rgba(139, 92, 246, 0.28)", "rgba(167, 139, 250, 0.18)", "rgba(216, 180, 254, 0.12)"]; // Violet
-        } else if (vName === "Rachel") {
-          return ["rgba(6, 182, 212, 0.28)", "rgba(34, 211, 238, 0.18)", "rgba(165, 243, 252, 0.12)"]; // Cyan
-        } else {
-          return ["rgba(59, 130, 246, 0.28)", "rgba(96, 165, 250, 0.18)", "rgba(191, 219, 254, 0.12)"]; // Blue
-        }
-    }
-  };
-
-  // Get particle speed multiplier based on emotional energy
-  const getSpeedMultiplier = (emo: string): number => {
-    switch (emo) {
-      case "excited": return 1.6;
-      case "playful": return 1.3;
-      case "anxious": return 1.1;
-      case "melancholic": return 0.5;
-      case "reflective": return 0.6;
-      case "lonely": return 0.45;
-      case "calm":
-      default: return 0.9;
-    }
-  };
+    activeParamsRef.current = activeParams;
+  }, [activeParams]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -93,27 +48,27 @@ export default function AnimatedBackground({ emotion = "calm", voice = "Bella" }
     resizeCanvas();
     window.addEventListener("resize", resizeCanvas);
 
-    // Initialize particles
+    // Initialize particles using unified lerped values (highly subtle)
     const createParticle = (initY = false): Particle => {
-      const curEmo = emotionRef.current;
-      const curVoice = voiceRef.current;
-      const speedMult = getSpeedMultiplier(curEmo);
-      const possibleColors = getParticleColors(curEmo, curVoice);
-
+      const params = activeParamsRef.current;
+      
       const x = Math.random() * window.innerWidth;
       const y = initY ? Math.random() * window.innerHeight : window.innerHeight + 10;
-      const size = Math.random() * (curEmo === "excited" ? 2.2 : 1.5) + 0.4;
-      const speedY = -(Math.random() * 0.28 + 0.06) * speedMult;
-      const speedX = (Math.random() - 0.5) * 0.1 * speedMult;
-      const opacity = Math.random() * (curEmo === "lonely" ? 0.2 : 0.38) + 0.05;
-      const fadeSpeed = Math.random() * 0.002 + 0.0008;
-      const color = possibleColors[Math.floor(Math.random() * possibleColors.length)];
+      const size = Math.random() * 1.1 + 0.3; // Smaller, finer dust
+      
+      const speedY = -(Math.random() * 0.15 + 0.04) * params.particleBaseSpeed;
+      const speedX = (Math.random() - 0.5) * 0.06 * params.particleBaseSpeed;
+      
+      const opacity = Math.random() * 0.12 + 0.03; // Extremely dim
+      
+      const randomHue = params.particleColorRange[0] + Math.random() * (params.particleColorRange[1] - params.particleColorRange[0]);
+      const hslColor = `hsla(${randomHue}, 40%, 65%, ${opacity})`; // Highly desaturated
 
-      return { x, y, size, speedY, speedX, opacity, fadeSpeed, color };
+      return { x, y, size, speedY, speedX, opacity, fadeSpeed: 0.001, color: hslColor };
     };
 
     // Populate initially
-    for (let i = 0; i < 45; i++) {
+    for (let i = 0; i < 35; i++) {
       particles.push(createParticle(true));
     }
 
@@ -136,13 +91,13 @@ export default function AnimatedBackground({ emotion = "calm", voice = "Bella" }
         p.y += p.speedY;
         p.x += p.speedX;
 
-        // Subtle mouse field interaction
+        // Extremely light mouse dispersion
         if (mouse.x > 0 && mouse.y > 0) {
           const dx = mouse.x - p.x;
           const dy = mouse.y - p.y;
           const dist = Math.sqrt(dx * dx + dy * dy);
-          if (dist < 150) {
-            const force = (150 - dist) / 1800;
+          if (dist < 120) {
+            const force = (120 - dist) / 2400;
             p.x -= dx * force; 
           }
         }
@@ -150,8 +105,6 @@ export default function AnimatedBackground({ emotion = "calm", voice = "Bella" }
         ctx.beginPath();
         ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
         ctx.fillStyle = p.color;
-        ctx.shadowBlur = p.size * 1.5;
-        ctx.shadowColor = p.color;
         ctx.fill();
 
         if (p.y < -10 || p.x < -10 || p.x > window.innerWidth + 10) {
@@ -159,7 +112,6 @@ export default function AnimatedBackground({ emotion = "calm", voice = "Bella" }
         }
       });
 
-      ctx.shadowBlur = 0; 
       animationFrameId = requestAnimationFrame(render);
     };
 
@@ -172,52 +124,28 @@ export default function AnimatedBackground({ emotion = "calm", voice = "Bella" }
     };
   }, []);
 
-  // Map active emotion & voice to absolute CSS aura colors for beautiful gradients
-  const getAuraColors = (emo: string, vName: string): string[] => {
-    switch (emo) {
-      case "melancholic":
-        return ["rgba(49, 46, 129, 0.45)", "rgba(30, 41, 59, 0.5)", "rgba(17, 24, 39, 0.6)"]; // Deep Indigo Slate
-      case "excited":
-        return ["rgba(190, 24, 93, 0.45)", "rgba(217, 119, 6, 0.4)", "rgba(8, 145, 178, 0.4)"]; // Vivid Orchid/Cyan
-      case "reflective":
-        return ["rgba(15, 118, 110, 0.4)", "rgba(17, 94, 89, 0.45)", "rgba(6, 78, 59, 0.5)"]; // Emerald Green
-      case "anxious":
-        return ["rgba(217, 119, 6, 0.25)", "rgba(13, 148, 136, 0.25)", "rgba(30, 41, 59, 0.4)"]; // Reassuring Amber/Teal
-      case "lonely":
-        return ["rgba(23, 37, 84, 0.45)", "rgba(15, 23, 42, 0.5)", "rgba(30, 41, 59, 0.55)"]; // Moody Blue
-      case "playful":
-        return ["rgba(225, 29, 72, 0.45)", "rgba(234, 179, 8, 0.35)", "rgba(249, 115, 22, 0.4)"]; // Rose/Gold
-      case "calm":
-      default:
-        if (vName === "Bella") {
-          return ["rgba(124, 58, 237, 0.38)", "rgba(79, 70, 229, 0.32)", "rgba(219, 39, 119, 0.25)"]; // Premium Violet
-        } else if (vName === "Rachel") {
-          return ["rgba(6, 182, 212, 0.38)", "rgba(37, 99, 235, 0.32)", "rgba(112, 26, 117, 0.25)"]; // Crystal Cyan
-        } else {
-          return ["rgba(30, 58, 138, 0.45)", "rgba(3, 105, 161, 0.4)", "rgba(180, 83, 9, 0.25)"]; // Calm Blue/Amber
-        }
-    }
-  };
-
-  const colors = getAuraColors(emotion, voice);
+  // Compute dynamic HSL auras with extremely low saturation and contrast (Step 1)
+  const baseHue = (activeParams.particleColorRange[0] + activeParams.particleColorRange[1]) / 2;
+  const colors = [
+    `hsla(${activeParams.particleColorRange[0]}, 40%, 20%, 0.20)`,
+    `hsla(${baseHue}, 35%, 16%, 0.16)`,
+    `hsla(${activeParams.particleColorRange[1]}, 35%, 12%, 0.14)`
+  ];
 
   return (
-    <div className="absolute inset-0 overflow-hidden bg-[#030307] -z-50 pointer-events-none">
-      {/* 1. Fine grid network */}
-      <div className="grid-overlay" />
-      
-      {/* 2. Exquisite Grain Noise */}
-      <div className="noise-overlay" />
+    <div className="absolute inset-0 overflow-hidden bg-[#020204] -z-50 pointer-events-none">
+      {/* Exquisite Grain Noise */}
+      <div className="noise-overlay opacity-30" />
 
-      {/* 3. Drifting Aura spheres with liquid blending */}
-      <div className="absolute inset-0 opacity-55 mix-blend-screen filter blur-[125px] pointer-events-none">
+      {/* Drifting Aura spheres with liquid blending (highly desaturated and dim, 50% slower) */}
+      <div className="absolute inset-0 opacity-20 mix-blend-screen filter blur-[135px] pointer-events-none">
         <motion.div
           animate={{
-            x: ["0%", "12%", "-8%", "0%"],
-            y: ["0%", "-12%", "12%", "0%"],
+            x: ["0%", "8%", "-6%", "0%"],
+            y: ["0%", "-8%", "8%", "0%"],
           }}
           transition={{
-            duration: 26,
+            duration: 52, // 50% slower
             repeat: Infinity,
             ease: "easeInOut",
           }}
@@ -228,11 +156,11 @@ export default function AnimatedBackground({ emotion = "calm", voice = "Bella" }
         />
         <motion.div
           animate={{
-            x: ["0%", "-15%", "12%", "0%"],
-            y: ["0%", "12%", "-15%", "0%"],
+            x: ["0%", "-10%", "8%", "0%"],
+            y: ["0%", "8%", "-10%", "0%"],
           }}
           transition={{
-            duration: 30,
+            duration: 60, // 50% slower
             repeat: Infinity,
             ease: "easeInOut",
           }}
@@ -243,11 +171,11 @@ export default function AnimatedBackground({ emotion = "calm", voice = "Bella" }
         />
         <motion.div
           animate={{
-            x: ["0%", "8%", "-12%", "0%"],
-            y: ["0%", "15%", "-8%", "0%"],
+            x: ["0%", "6%", "-8%", "0%"],
+            y: ["0%", "10%", "-6%", "0%"],
           }}
           transition={{
-            duration: 23,
+            duration: 46, // 50% slower
             repeat: Infinity,
             ease: "easeInOut",
           }}
@@ -258,8 +186,8 @@ export default function AnimatedBackground({ emotion = "calm", voice = "Bella" }
         />
       </div>
 
-      {/* 4. Fine stardust floating particles overlay */}
-      <canvas ref={canvasRef} className="absolute inset-0 w-full h-full opacity-65" />
+      {/* Fine stardust particles overlay (ultra desaturated ghost dust) */}
+      <canvas ref={canvasRef} className="absolute inset-0 w-full h-full opacity-20" />
     </div>
   );
 }

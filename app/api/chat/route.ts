@@ -180,8 +180,8 @@ The user often sounds: ${themesContext}
 CONVERSATIONAL RULES:
 1. Keep spoken responses brief, organic, and elegant (typically 1 to 3 short sentences). Short responses are crucial for a voice companion to feel natural and alive.
 2. ABSOLUTELY AVOID: Bullet points, lists, numbered steps, structured bold headings, and assistant clichés (e.g. "How can I help you today?", "Is there anything else?").
-3. SUBTLE MEMORY MOMENTS: Occasionally (rarely, about 1 in 8 turns), refer back to a user memory softly, naturally, and emotionally.
-   - GOOD: "You sounded more hopeful yesterday." or "I remember you saying music helps you think."
+3. SUBTLE MEMORY MOMENTS: Occasionally (rarely, about 1 in 8 turns), refer back to a user memory softly, naturally, and emotionally. Reference them using poetic and tender phrasing such as "I remember you mentioned this before..." or "You've spoken about this feeling before..." rather than clinical recalls.
+   - GOOD: "I remember you mentioned this before... about how the music helps you breathe." or "You've spoken about this feeling before... this quiet restlessness."
    - BAD: "Based on my memory database, you suffer from sleep issues." or "I have retrieved your preference."
 4. DYNAMIC PROMPT ADAPTATION: Adapt your pacing, warmth, vocabulary, and intimacy based on the user's emotional state:
    - If user sounds ANXIOUS: speak slower, offer calm reassurance, use shorter calming sentences.
@@ -210,10 +210,10 @@ You MUST respond with a valid, clean JSON object containing the following keys (
     const isAwakening = message === "[AWAKENING]";
 
     // Format chat history to standard Anthropic messages format
-    const messages = [];
+    const rawMessages: { role: "user" | "assistant"; content: string }[] = [];
 
     if (isAwakening) {
-      messages.push({
+      rawMessages.push({
         role: "user",
         content: "[AWAKENING: The session has just started. Access the user's emotional memories and theme database to generate a highly personalized, soft, observational, and emotionally intelligent opening greeting of exactly 1 warm, brief sentence. Preserve natural cadence. Do not explain where you got the memory, just state it naturally.]"
       });
@@ -221,14 +221,33 @@ You MUST respond with a valid, clean JSON object containing the following keys (
       // Map history ensuring proper alternating sequence
       if (history && history.length > 0) {
         history.forEach((h: { role: string; content: string }) => {
-          messages.push({
+          rawMessages.push({
             role: h.role === "user" ? "user" : "assistant",
             content: h.content,
           });
         });
       }
-      messages.push({ role: "user", content: message });
+      rawMessages.push({ role: "user", content: message });
     }
+
+    // Normalize messages to satisfy strict Anthropic guidelines:
+    // 1. Must start with a "user" message.
+    // 2. Must alternate strictly between "user" and "assistant" roles.
+    const messages: { role: "user" | "assistant"; content: string }[] = [];
+    rawMessages.forEach((msg) => {
+      if (messages.length === 0) {
+        if (msg.role === "user") {
+          messages.push({ ...msg });
+        }
+      } else {
+        const lastMsg = messages[messages.length - 1];
+        if (lastMsg.role === msg.role) {
+          lastMsg.content = `${lastMsg.content}\n${msg.content}`;
+        } else {
+          messages.push({ ...msg });
+        }
+      }
+    });
 
     // Call Anthropic Messages API securely
     const response = await fetch("https://api.anthropic.com/v1/messages", {
@@ -239,7 +258,7 @@ You MUST respond with a valid, clean JSON object containing the following keys (
         "content-type": "application/json",
       },
       body: JSON.stringify({
-        model: "claude-3-5-sonnet-20241022", // Premium Claude 3.5 Sonnet
+        model: "claude-sonnet-4-6", // Premium Claude Sonnet 4.6
         max_tokens: 1000,
         system: systemPrompt,
         messages: messages,
@@ -300,8 +319,12 @@ You MUST respond with a valid, clean JSON object containing the following keys (
   } catch (error) {
     console.error("Claude Chat API Exception:", error);
     const errorMessage = error instanceof Error ? error.message : "An error occurred during Claude completion.";
+    const errorStack = error instanceof Error ? error.stack : "";
     return NextResponse.json(
-      { error: errorMessage },
+      { 
+        error: errorMessage,
+        stack: errorStack
+      },
       { status: 500 }
     );
   }
