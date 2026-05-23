@@ -53,10 +53,51 @@ export function useVoiceEngine() {
   const voiceRef = useRef<string>("Bella");
   const visualizerIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
+  // Synthesizer Engine References for Cinematic Atmospheric Drone
+  const subOscRef = useRef<OscillatorNode | null>(null);
+  const padOscRef = useRef<OscillatorNode | null>(null);
+  const synthFilterRef = useRef<BiquadFilterNode | null>(null);
+  const synthGainRef = useRef<GainNode | null>(null);
+  const lfoRef = useRef<OscillatorNode | null>(null);
+  const lfoGainRef = useRef<GainNode | null>(null);
+
   useEffect(() => {
     emotionRef.current = currentEmotion;
     voiceRef.current = currentVoice;
   }, [currentEmotion, currentVoice]);
+
+  // Trigger soundscape emotional modulation
+  useEffect(() => {
+    if (isEngineActive) {
+      modulateAtmosphericDrone(currentEmotion);
+    }
+  }, [currentEmotion, isEngineActive]);
+
+  // Duck synth drone volume when user is speaking to optimize recognition clarity
+  useEffect(() => {
+    try {
+      const audioContext = audioContextRef.current;
+      const synthGain = synthGainRef.current;
+      if (!audioContext || !synthGain) return;
+
+      const now = audioContext.currentTime;
+      synthGain.gain.cancelScheduledValues(now);
+      
+      if (state === "listening") {
+        // Muffle and duck slightly so mic recognition is perfect
+        synthGain.gain.linearRampToValueAtTime(0.04, now + 0.8);
+      } else if (state === "thinking") {
+        // Swell up during thinking state to create anticipatory tension/warmth
+        synthGain.gain.linearRampToValueAtTime(0.24, now + 1.2);
+      } else if (state === "speaking") {
+        // Return to standard volume behind the assistant's voice
+        synthGain.gain.linearRampToValueAtTime(0.14, now + 1.0);
+      } else { // idle
+        // Silent
+        synthGain.gain.linearRampToValueAtTime(0, now + 1.0);
+      }
+    } catch (e) {}
+  }, [state]);
 
   // Initialize Session ID and Voice client-side to prevent hydration mismatches
   useEffect(() => {
@@ -289,6 +330,189 @@ export function useVoiceEngine() {
     }
     setAudioLevels(new Array(24).fill(0));
     setAverageAmplitude(0);
+  };
+
+  // Real-time atmospheric drone synthesizer
+  const startAtmosphericDrone = () => {
+    if (typeof window === "undefined") return;
+
+    try {
+      const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+      if (!audioContextRef.current) {
+        audioContextRef.current = new AudioContextClass();
+      }
+
+      const audioContext = audioContextRef.current;
+      if (audioContext.state === "suspended") {
+        audioContext.resume();
+      }
+
+      // Stop existing nodes if already active
+      stopAtmosphericDrone();
+
+      // Master Synthesizer Gain Node (for startup fade-in / ducking / shutdown)
+      const synthGain = audioContext.createGain();
+      synthGain.gain.setValueAtTime(0, audioContext.currentTime);
+      synthGain.connect(audioContext.destination);
+      synthGainRef.current = synthGain;
+
+      // Resonant Lowpass Filter to keep tones warm, dark, and sub-bass focused
+      const synthFilter = audioContext.createBiquadFilter();
+      synthFilter.type = "lowpass";
+      synthFilter.frequency.setValueAtTime(140, audioContext.currentTime);
+      synthFilter.Q.setValueAtTime(1.5, audioContext.currentTime);
+      synthFilter.connect(synthGain);
+      synthFilterRef.current = synthFilter;
+
+      // Deep Sub-Bass Oscillator
+      const subOsc = audioContext.createOscillator();
+      subOsc.type = "sine";
+      subOsc.frequency.setValueAtTime(55, audioContext.currentTime); // 55Hz - A1 sub-tone
+      subOsc.connect(synthFilter);
+      subOsc.start();
+      subOscRef.current = subOsc;
+
+      // Soft Harmonic Triangle Pad (adds rich ambient texture)
+      const padOsc = audioContext.createOscillator();
+      padOsc.type = "triangle";
+      padOsc.frequency.setValueAtTime(110, audioContext.currentTime); // 110Hz - A2 harmonic
+      
+      const padGain = audioContext.createGain();
+      padGain.gain.setValueAtTime(0.35, audioContext.currentTime);
+      padOsc.connect(padGain);
+      padGain.connect(synthFilter);
+      padOsc.start();
+      padOscRef.current = padOsc;
+
+      // Low-Frequency Oscillator (LFO) for breathing, liquid modulation
+      const lfo = audioContext.createOscillator();
+      lfo.type = "sine";
+      lfo.frequency.setValueAtTime(0.08, audioContext.currentTime); // 1 cycle per 12.5 seconds
+
+      const lfoGain = audioContext.createGain();
+      lfoGain.gain.setValueAtTime(25, audioContext.currentTime); // Shift cutoff by +/- 25Hz
+
+      lfo.connect(lfoGain);
+      lfoGain.connect(synthFilter.frequency);
+      lfo.start();
+      lfoRef.current = lfo;
+      lfoGainRef.current = lfoGain;
+
+      // Smoothly swell master drone volume over 3 seconds
+      synthGain.gain.linearRampToValueAtTime(0.18, audioContext.currentTime + 3.0);
+      console.log("🌌 Atmospheric synthesizer drone activated.");
+    } catch (e) {
+      console.warn("Failed to initialize Web Audio drone:", e);
+    }
+  };
+
+  const stopAtmosphericDrone = () => {
+    try {
+      const audioContext = audioContextRef.current;
+      const synthGain = synthGainRef.current;
+
+      if (synthGain && audioContext) {
+        // Smoothly fade out drone volume over 1.2 seconds to prevent audio pops
+        synthGain.gain.cancelScheduledValues(audioContext.currentTime);
+        synthGain.gain.setValueAtTime(synthGain.gain.value, audioContext.currentTime);
+        synthGain.gain.exponentialRampToValueAtTime(0.0001, audioContext.currentTime + 1.2);
+      }
+
+      setTimeout(() => {
+        if (subOscRef.current) {
+          try { subOscRef.current.stop(); } catch (e) {}
+          subOscRef.current.disconnect();
+          subOscRef.current = null;
+        }
+        if (padOscRef.current) {
+          try { padOscRef.current.stop(); } catch (e) {}
+          padOscRef.current.disconnect();
+          padOscRef.current = null;
+        }
+        if (lfoRef.current) {
+          try { lfoRef.current.stop(); } catch (e) {}
+          lfoRef.current.disconnect();
+          lfoRef.current = null;
+        }
+        if (lfoGainRef.current) {
+          lfoGainRef.current.disconnect();
+          lfoGainRef.current = null;
+        }
+        if (synthFilterRef.current) {
+          synthFilterRef.current.disconnect();
+          synthFilterRef.current = null;
+        }
+        if (synthGainRef.current) {
+          synthGainRef.current.disconnect();
+          synthGainRef.current = null;
+        }
+      }, 1300);
+    } catch (e) {}
+  };
+
+  const modulateAtmosphericDrone = (emotion: string) => {
+    try {
+      const audioContext = audioContextRef.current;
+      const synthFilter = synthFilterRef.current;
+      const subOsc = subOscRef.current;
+      const padOsc = padOscRef.current;
+      const synthGain = synthGainRef.current;
+
+      if (!audioContext || !synthFilter || !synthGain) return;
+
+      const now = audioContext.currentTime;
+
+      // Cancel pending values
+      synthFilter.frequency.cancelScheduledValues(now);
+      synthGain.gain.cancelScheduledValues(now);
+      if (subOsc) subOsc.frequency.cancelScheduledValues(now);
+      if (padOsc) padOsc.frequency.cancelScheduledValues(now);
+
+      switch (emotion) {
+        case "melancholic":
+        case "lonely":
+          // Deep, soothing womb-like sub-drone (A1/A2 octaves, low cutoff)
+          synthFilter.frequency.exponentialRampToValueAtTime(110, now + 4.0);
+          synthGain.gain.linearRampToValueAtTime(0.24, now + 3.0);
+          if (subOsc) subOsc.frequency.exponentialRampToValueAtTime(55, now + 3.0);
+          if (padOsc) padOsc.frequency.exponentialRampToValueAtTime(110, now + 3.0);
+          break;
+
+        case "anxious":
+          // Extremely warm, comforting, highly muffled drone to steady heartbeat
+          synthFilter.frequency.exponentialRampToValueAtTime(95, now + 4.0);
+          synthGain.gain.linearRampToValueAtTime(0.15, now + 3.0);
+          if (subOsc) subOsc.frequency.exponentialRampToValueAtTime(55, now + 3.0);
+          if (padOsc) padOsc.frequency.exponentialRampToValueAtTime(110, now + 3.0);
+          break;
+
+        case "excited":
+        case "playful":
+          // Bright, warm major-interval shift (C2/C3 pitches, higher cutoff)
+          synthFilter.frequency.exponentialRampToValueAtTime(260, now + 4.0);
+          synthGain.gain.linearRampToValueAtTime(0.16, now + 3.0);
+          if (subOsc) subOsc.frequency.exponentialRampToValueAtTime(65.4, now + 4.0);
+          if (padOsc) padOsc.frequency.exponentialRampToValueAtTime(130.8, now + 4.0);
+          break;
+
+        case "reflective":
+          // Resonant PERFECT FIFTH chord drone (A1 and E3 pitches)
+          synthFilter.frequency.exponentialRampToValueAtTime(190, now + 4.0);
+          synthGain.gain.linearRampToValueAtTime(0.20, now + 3.0);
+          if (subOsc) subOsc.frequency.exponentialRampToValueAtTime(55, now + 3.0);
+          if (padOsc) padOsc.frequency.exponentialRampToValueAtTime(164.8, now + 4.0);
+          break;
+
+        case "calm":
+        default:
+          // Standard balanced drone
+          synthFilter.frequency.exponentialRampToValueAtTime(140, now + 4.0);
+          synthGain.gain.linearRampToValueAtTime(0.18, now + 3.0);
+          if (subOsc) subOsc.frequency.exponentialRampToValueAtTime(55, now + 3.0);
+          if (padOsc) padOsc.frequency.exponentialRampToValueAtTime(110, now + 3.0);
+          break;
+      }
+    } catch (e) {}
   };
 
   // Initialize Speech Recognition
@@ -632,6 +856,9 @@ export function useVoiceEngine() {
       }
     }
 
+    // Launch Web Audio synthesizer drone
+    startAtmosphericDrone();
+
     // Step 4: Delay initial awakening greeting to let sub-bass drone and warm reverb swell first in silence
     setTimeout(() => {
       if (isEngineActiveRef.current) {
@@ -650,6 +877,9 @@ export function useVoiceEngine() {
         recognitionRef.current.stop();
       } catch (e) {}
     }
+
+    // Stop Web Audio drone
+    stopAtmosphericDrone();
 
     stopWithFadeOut(() => {
       if (silenceTimeoutRef.current) {
