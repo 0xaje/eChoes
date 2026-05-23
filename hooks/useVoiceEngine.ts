@@ -824,7 +824,7 @@ export function useVoiceEngine() {
   };
 
   // Interruption Handling: Fade out audio, flush, and resume listening turn (Step 8)
-  const handleInterruption = () => {
+  function handleInterruption() {
     if (typeof window !== "undefined" && "speechSynthesis" in window) {
       window.speechSynthesis.cancel();
     }
@@ -838,6 +838,26 @@ export function useVoiceEngine() {
       setState("listening");
       console.log("⚡ Interrupt success. Echoes halted and listening.");
     });
+  }
+
+  // Text input keyboard fallback (bypasses microphone for non-speech environments)
+  function submitTextInput(text: string) {
+    if (!text || !text.trim() || !isEngineActiveRef.current) return;
+    
+    // Interruption cleanup if speaking
+    if (stateRef.current === "speaking") {
+      if (typeof window !== "undefined" && "speechSynthesis" in window) {
+        window.speechSynthesis.cancel();
+      }
+      stopSimulatedVisualizer();
+      stopWithFadeOut(() => {
+        stopAudioAnalysis();
+        setAiTranscript("");
+      });
+    }
+
+    setTranscript(text.trim());
+    processConversation(text.trim());
   };
 
   // Launch Engine
@@ -925,6 +945,7 @@ export function useVoiceEngine() {
     startEngine,
     stopEngine,
     handleInterruption,
+    submitTextInput,
     // Add memory/personality metrics to return signature
     sessionId,
     currentEmotion,

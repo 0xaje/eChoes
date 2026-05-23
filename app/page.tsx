@@ -24,6 +24,7 @@ export default function Home() {
     startEngine,
     stopEngine,
     handleInterruption,
+    submitTextInput,
     currentEmotion,
     currentVoice,
     recentMemories,
@@ -499,6 +500,37 @@ export default function Home() {
                   </AnimatePresence>
                 </div>
               </div>
+              {/* Sleek Dynamic Text Input Fallback (Step 3 /resiliency option) */}
+              {!isDemoMode && (
+                <div className="mt-5 w-full flex justify-center">
+                  <form
+                    onSubmit={(e) => {
+                      e.preventDefault();
+                      const form = e.currentTarget;
+                      const inputEl = form.elements.namedItem("message") as HTMLInputElement;
+                      if (inputEl && inputEl.value.trim()) {
+                        submitTextInput(inputEl.value);
+                        inputEl.value = "";
+                      }
+                    }}
+                    className="w-full max-w-lg flex items-center bg-black/45 backdrop-blur-md border border-white/5 rounded-full px-5 py-2 hover:border-cyan-500/20 focus-within:border-cyan-500/40 focus-within:shadow-[0_0_15px_rgba(6,182,212,0.15)] transition-all duration-500 shadow-xl"
+                  >
+                    <input
+                      type="text"
+                      name="message"
+                      placeholder="Whisper to the Echo (keyboard mode active)..."
+                      className="flex-1 bg-transparent border-0 outline-none text-xs font-light text-neutral-300 placeholder-neutral-500 tracking-wider px-2 py-1.5"
+                      autoComplete="off"
+                    />
+                    <button
+                      type="submit"
+                      className="w-8 h-8 rounded-full bg-white/5 border border-white/10 hover:bg-cyan-500/10 hover:border-cyan-400/30 flex items-center justify-center transition-all duration-300 group cursor-pointer"
+                    >
+                      <Sparkles className="w-3.5 h-3.5 text-neutral-400 group-hover:text-cyan-400 group-hover:scale-105 transition-all" />
+                    </button>
+                  </form>
+                </div>
+              )}
             </motion.div>
           )}
         </AnimatePresence>
