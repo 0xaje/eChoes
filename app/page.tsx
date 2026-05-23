@@ -92,10 +92,10 @@ function EchoesDashboard() {
       className="relative min-h-screen w-full flex flex-col items-center justify-between overflow-x-hidden p-4 md:p-8 text-white font-sans selection:bg-cyan-500/20 select-none"
       style={{
         transitionDuration: `${activeParams.uiTransitionSpeed}ms`,
-        ["--ui-transition-ms" as any]: `${activeParams.uiTransitionSpeed}ms`,
-        ["--ui-glow-opacity" as any]: activeParams.uiGlowIntensity,
-        ["--ui-subtitle-fade" as any]: `${activeParams.uiSubtitleFadeMs}ms`
-      }}
+        "--ui-transition-ms": `${activeParams.uiTransitionSpeed}ms`,
+        "--ui-glow-opacity": activeParams.uiGlowIntensity,
+        "--ui-subtitle-fade": `${activeParams.uiSubtitleFadeMs}ms`
+      } as React.CSSProperties}
     >
       
       {/* 1. Ambient Particles & Dynamic Auroras Background */}

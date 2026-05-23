@@ -131,8 +131,6 @@ export default function OrbParticleField({
 
     // SWARM BURST MODE: Spawns an energetic cluster of particles exploding radially from the core
     const triggerSwarmBurst = (cx: number, cy: number, vol: number) => {
-      const params = activeParamsRef.current;
-
       let particleCount = 10;
       let speedMultiplier = 1.0;
       let sizeFactor = 1.0;
