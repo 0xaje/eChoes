@@ -9,7 +9,7 @@ interface StatusTextProps {
 }
 
 export default function StatusText({ state, emotion = "calm", voice = "Bella" }: StatusTextProps) {
-  
+
   // Custom styled descriptions for each state depending on the active emotion
   const getSubtitles = () => {
     if (state === "thinking") {

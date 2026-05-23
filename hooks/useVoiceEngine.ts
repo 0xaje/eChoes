@@ -51,6 +51,7 @@ export function useVoiceEngine() {
   // Ref synchronizers to ensure web Speech API always reads fresh states
   const emotionRef = useRef<string>("calm");
   const voiceRef = useRef<string>("Bella");
+  const visualizerIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     emotionRef.current = currentEmotion;
@@ -185,6 +186,109 @@ export function useVoiceEngine() {
         callback();
       }
     }, 10); // Ramp down complete in 70ms-100ms
+  };
+
+  const speakWithNativeTTS = (text: string) => {
+    if (typeof window === "undefined" || !("speechSynthesis" in window)) return;
+    
+    // Stop speech recognition while speaking to prevent self-interruption feedback loop
+    if (recognitionRef.current) {
+      try { recognitionRef.current.stop(); } catch (e) {}
+    }
+
+    // Cancel any active speech
+    window.speechSynthesis.cancel();
+    
+    const utterance = new SpeechSynthesisUtterance(text);
+    
+    // Choose high-quality voice depending on personality
+    const voices = window.speechSynthesis.getVoices();
+    let selectedVoice = null;
+    
+    if (voiceRef.current === "Bella") {
+      // Warm feminine
+      selectedVoice = voices.find(v => v.name.includes("Google US English") || v.name.includes("Zira") || v.lang.startsWith("en-US"));
+    } else if (voiceRef.current === "Rachel") {
+      // Elegant futuristic
+      selectedVoice = voices.find(v => v.name.includes("Google UK English Female") || v.name.includes("Hazel") || v.lang.startsWith("en-GB"));
+    } else {
+      // Antoni - Reassuring masculine
+      selectedVoice = voices.find(v => v.name.includes("Google US English Male") || v.name.includes("David") || (v.lang.startsWith("en-US") && v.name.includes("Male")));
+    }
+    
+    if (selectedVoice) {
+      utterance.voice = selectedVoice;
+    }
+    
+    // Adjust pitch and rate depending on emotion
+    if (emotionRef.current === "excited" || emotionRef.current === "playful") {
+      utterance.rate = 1.1;
+      utterance.pitch = 1.05;
+    } else if (emotionRef.current === "melancholic" || emotionRef.current === "lonely") {
+      utterance.rate = 0.85;
+      utterance.pitch = 0.95;
+    } else if (emotionRef.current === "reflective") {
+      utterance.rate = 0.9;
+      utterance.pitch = 0.98;
+    } else if (emotionRef.current === "anxious") {
+      utterance.rate = 0.88;
+      utterance.pitch = 1.0;
+    } else {
+      utterance.rate = 0.98;
+      utterance.pitch = 1.0;
+    }
+    
+    utterance.onstart = () => {
+      setState("speaking");
+      simulateVisualizerSpeech();
+    };
+    
+    utterance.onend = () => {
+      stopSimulatedVisualizer();
+      setAiTranscript("");
+      setTranscript("");
+      setState("listening");
+      if (isEngineActiveRef.current && recognitionRef.current) {
+        try { recognitionRef.current.start(); } catch (e) {}
+      }
+    };
+
+    utterance.onerror = () => {
+      stopSimulatedVisualizer();
+      setState("listening");
+      if (isEngineActiveRef.current && recognitionRef.current) {
+        try { recognitionRef.current.start(); } catch (e) {}
+      }
+    };
+    
+    window.speechSynthesis.speak(utterance);
+  };
+
+  const simulateVisualizerSpeech = () => {
+    if (visualizerIntervalRef.current) clearInterval(visualizerIntervalRef.current);
+    
+    visualizerIntervalRef.current = setInterval(() => {
+      const levels = Array.from({ length: 24 }, () => Math.floor(Math.random() * 85) + 15);
+      // Give it a speech-like envelope with a center bias
+      const centerBiasedLevels = levels.map((val, idx) => {
+        const dist = Math.abs(idx - 12);
+        const factor = Math.max(0.1, 1 - dist / 12);
+        return Math.floor(val * factor * (Math.random() * 0.5 + 0.75));
+      });
+      setAudioLevels(centerBiasedLevels);
+      
+      const total = centerBiasedLevels.reduce((a, b) => a + b, 0);
+      setAverageAmplitude((total / (24 * 255)) * 1.8);
+    }, 90);
+  };
+
+  const stopSimulatedVisualizer = () => {
+    if (visualizerIntervalRef.current) {
+      clearInterval(visualizerIntervalRef.current);
+      visualizerIntervalRef.current = null;
+    }
+    setAudioLevels(new Array(24).fill(0));
+    setAverageAmplitude(0);
   };
 
   // Initialize Speech Recognition
@@ -449,7 +553,9 @@ export function useVoiceEngine() {
       setAiTranscript(replyText);
 
       // 3. Load ElevenLabs TTS audio stream directly into audio element with active voice selection
-      if (audioRef.current) {
+      if (chatData.isSimulated) {
+        speakWithNativeTTS(replyText);
+      } else if (audioRef.current) {
         audioRef.current.src = `/api/tts?text=${encodeURIComponent(replyText)}&voice=${currentVoice}&emotion=${emotionalState}`;
         audioRef.current.load();
         
@@ -478,6 +584,10 @@ export function useVoiceEngine() {
 
   // Interruption Handling: Fade out audio, flush, and resume listening turn (Step 8)
   const handleInterruption = () => {
+    if (typeof window !== "undefined" && "speechSynthesis" in window) {
+      window.speechSynthesis.cancel();
+    }
+    stopSimulatedVisualizer();
     stopWithFadeOut(() => {
       stopAudioAnalysis();
       setAiTranscript("");
@@ -545,7 +655,10 @@ export function useVoiceEngine() {
       if (silenceTimeoutRef.current) {
         clearTimeout(silenceTimeoutRef.current);
       }
-
+      if (typeof window !== "undefined" && "speechSynthesis" in window) {
+        window.speechSynthesis.cancel();
+      }
+      stopSimulatedVisualizer();
       stopAudioAnalysis();
       setState("idle");
       setTranscript("");

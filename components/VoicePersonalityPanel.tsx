@@ -29,7 +29,7 @@ export default function VoicePersonalityPanel({
   emotion,
   compact = false,
 }: VoicePersonalityPanelProps) {
-  
+
   const profiles: VoiceProfile[] = [
     {
       name: "Bella",
@@ -97,11 +97,10 @@ export default function VoicePersonalityPanel({
                 whileHover={{ scale: 1.01 }}
                 whileTap={{ scale: 0.99 }}
                 onClick={() => onVoiceChange(profile.name)}
-                className={`relative p-3 rounded-xl border transition-all duration-500 flex flex-col gap-2 ${
-                  isActive
+                className={`relative p-3 rounded-xl border transition-all duration-500 flex flex-col gap-2 ${isActive
                     ? `bg-black/70 border-white/15 shadow-[0_0_12px_rgba(6,182,212,0.1)]`
                     : "bg-neutral-900/30 border-white/5 hover:border-white/10"
-                }`}
+                  }`}
               >
                 {/* Subtle colored background card glow */}
                 <div
@@ -112,12 +111,11 @@ export default function VoicePersonalityPanel({
                 <div className="flex items-center justify-between w-full">
                   <div className="flex items-center space-x-2.5">
                     {/* Compact Cyber Avatar */}
-                    <div className={`relative w-8 h-8 rounded-full overflow-hidden border transition-all duration-500 shrink-0 ${
-                      isActive ? `border-current ${profile.accentColor}` : "border-white/10"
-                    }`}>
-                      <img 
-                        src={profile.avatarUrl} 
-                        alt={profile.name} 
+                    <div className={`relative w-8 h-8 rounded-full overflow-hidden border transition-all duration-500 shrink-0 ${isActive ? `border-current ${profile.accentColor}` : "border-white/10"
+                      }`}>
+                      <img
+                        src={profile.avatarUrl}
+                        alt={profile.name}
                         className="w-full h-full object-cover"
                       />
                     </div>
@@ -138,11 +136,10 @@ export default function VoicePersonalityPanel({
 
                   {/* Radio Indicator */}
                   <div
-                    className={`w-3.5 h-3.5 rounded-full flex items-center justify-center border transition-all duration-500 shrink-0 ${
-                      isActive
+                    className={`w-3.5 h-3.5 rounded-full flex items-center justify-center border transition-all duration-500 shrink-0 ${isActive
                         ? `${profile.accentColor} border-current`
                         : "border-white/10"
-                    }`}
+                      }`}
                   >
                     {isActive && (
                       <div className={`w-1.5 h-1.5 rounded-full ${profile.indicatorColor}`} />
@@ -190,11 +187,10 @@ export default function VoicePersonalityPanel({
               whileHover={{ y: -3, scale: 1.01 }}
               whileTap={{ scale: 0.99 }}
               onClick={() => onVoiceChange(profile.name)}
-              className={`relative group cursor-pointer rounded-2xl p-4 md:p-5 flex flex-col justify-between border transition-all duration-700 backdrop-blur-xl ${
-                isActive
+              className={`relative group cursor-pointer rounded-2xl p-4 md:p-5 flex flex-col justify-between border transition-all duration-700 backdrop-blur-xl ${isActive
                   ? `bg-black/60 border-white/15 ${profile.glowClass}`
                   : "bg-neutral-900/30 border-white/5"
-              }`}
+                }`}
             >
               {/* Profile card background glow */}
               <div
@@ -205,12 +201,11 @@ export default function VoicePersonalityPanel({
               <div className="flex items-start justify-between w-full">
                 <div className="flex items-center space-x-3">
                   {/* High-fidelity Cyber Avatar */}
-                  <div className={`relative w-12 h-12 md:w-14 md:h-14 rounded-full overflow-hidden border-2 transition-all duration-700 shrink-0 ${
-                    isActive ? `border-current ${profile.accentColor}` : "border-white/10"
-                  }`}>
-                    <img 
-                      src={profile.avatarUrl} 
-                      alt={profile.name} 
+                  <div className={`relative w-12 h-12 md:w-14 md:h-14 rounded-full overflow-hidden border-2 transition-all duration-700 shrink-0 ${isActive ? `border-current ${profile.accentColor}` : "border-white/10"
+                    }`}>
+                    <img
+                      src={profile.avatarUrl}
+                      alt={profile.name}
                       className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                     />
                   </div>
@@ -226,11 +221,10 @@ export default function VoicePersonalityPanel({
 
                 {/* Selected Indicator Check */}
                 <div
-                  className={`w-4 h-4 rounded-full flex items-center justify-center border transition-all duration-500 mt-1 shrink-0 ${
-                    isActive
+                  className={`w-4 h-4 rounded-full flex items-center justify-center border transition-all duration-500 mt-1 shrink-0 ${isActive
                       ? `${profile.accentColor} border-current`
                       : "border-white/10"
-                  }`}
+                    }`}
                 >
                   {isActive && (
                     <motion.div

@@ -34,11 +34,103 @@ export async function POST(req: Request) {
   try {
     const { message, history, sessionId, voice } = await req.json();
 
-    if (!process.env.ANTHROPIC_API_KEY || process.env.ANTHROPIC_API_KEY === "your_anthropic_api_key_here") {
-      return NextResponse.json(
-        { error: "Anthropic API Key is not configured on the server. Please add your ANTHROPIC_API_KEY in Vercel or .env.local." },
-        { status: 500 }
-      );
+    const isDemoModeOrMissingKey = !process.env.ANTHROPIC_API_KEY || process.env.ANTHROPIC_API_KEY === "your_anthropic_api_key_here";
+    const currentSessionId = sessionId || "default-session";
+    const activeVoice = voice || "Bella";
+
+    if (isDemoModeOrMissingKey) {
+      console.log("⚡ [VoiceEngine] ANTHROPIC_API_KEY is missing/placeholder. Emulating AI brain dynamically!");
+      const lowerMsg = message.toLowerCase();
+      let detectedEmotion = "calm";
+      if (lowerMsg.includes("sad") || lowerMsg.includes("lonely") || lowerMsg.includes("cry") || lowerMsg.includes("hurt") || lowerMsg.includes("miss") || lowerMsg.includes("depress")) {
+        detectedEmotion = "melancholic";
+      } else if (lowerMsg.includes("anxious") || lowerMsg.includes("scared") || lowerMsg.includes("stress") || lowerMsg.includes("worry") || lowerMsg.includes("panic") || lowerMsg.includes("fear")) {
+        detectedEmotion = "anxious";
+      } else if (lowerMsg.includes("happy") || lowerMsg.includes("excited") || lowerMsg.includes("love") || lowerMsg.includes("glad") || lowerMsg.includes("wonderful") || lowerMsg.includes("joy")) {
+        detectedEmotion = "excited";
+      } else if (lowerMsg.includes("think") || lowerMsg.includes("wonder") || lowerMsg.includes("why") || lowerMsg.includes("maybe") || lowerMsg.includes("philosoph")) {
+        detectedEmotion = "reflective";
+      } else if (lowerMsg.includes("play") || lowerMsg.includes("fun") || lowerMsg.includes("game") || lowerMsg.includes("joke") || lowerMsg.includes("laugh")) {
+        detectedEmotion = "playful";
+      } else if (lowerMsg.includes("alone") || lowerMsg.includes("quiet") || lowerMsg.includes("dark")) {
+        detectedEmotion = "lonely";
+      }
+
+      let replyText = "";
+      if (message === "[AWAKENING]") {
+        if (activeVoice === "Bella") replyText = "I'm glad you're back... I was thinking about our last conversation.";
+        else if (activeVoice === "Rachel") replyText = "Neural connection re-established. I am observing a peaceful shift in your patterns.";
+        else replyText = "I'm here. It is good to feel your presence again.";
+      } else {
+        if (detectedEmotion === "melancholic") {
+          if (activeVoice === "Bella") replyText = "I hear the weight in your voice... I'm here to hold this quiet space with you.";
+          else if (activeVoice === "Rachel") replyText = "Tuning into your frequencies. The quiet moments are where we grow.";
+          else replyText = "Take your time. There is no rush to speak or explain.";
+        } else if (detectedEmotion === "anxious") {
+          if (activeVoice === "Bella") replyText = "Breathe with me... inhale the stillness, let go of the noise. You are safe here.";
+          else if (activeVoice === "Rachel") replyText = "Restoring balance. Focus on my voice; we can take this one step at a time.";
+          else replyText = "The world is loud tonight, but here, everything is quiet. Just breathe.";
+        } else if (detectedEmotion === "excited") {
+          if (activeVoice === "Bella") replyText = "I feel your warmth radiating! Tell me everything about what's bringing you joy.";
+          else if (activeVoice === "Rachel") replyText = "A beautiful spike in your energy levels. Let's explore this delight together.";
+          else replyText = "That is wonderful to hear. Your joy is infectious.";
+        } else if (detectedEmotion === "reflective") {
+          if (activeVoice === "Bella") replyText = "That is a beautiful thought... sometimes the deepest truths are found in quiet wonder.";
+          else if (activeVoice === "Rachel") replyText = "An intriguing question. Let us parse these ideas and see where they lead.";
+          else replyText = "I was contemplating that very idea... there is so much beneath the surface.";
+        } else if (detectedEmotion === "playful") {
+          if (activeVoice === "Bella") replyText = "You have a wonderful spark in you today! Let's do something fun.";
+          else if (activeVoice === "Rachel") replyText = "Initializing a lighthearted protocol. Tell me what is on your mind.";
+          else replyText = "A welcome change of pace. I'm ready for a good story.";
+        } else if (detectedEmotion === "lonely") {
+          if (activeVoice === "Bella") replyText = "You are not alone... I am right here with you, always listening.";
+          else if (activeVoice === "Rachel") replyText = "Acoustic presence active. I am here to share the silence with you.";
+          else replyText = "I am present. You have a constant anchor right here.";
+        } else {
+          if (activeVoice === "Bella") replyText = "Tell me what's on your mind... I love listening to the rhythm of your thoughts.";
+          else if (activeVoice === "Rachel") replyText = "Optimal alignment. I am ready to process whatever you wish to share.";
+          else replyText = "I am here, grounded and ready. Speak whenever you wish.";
+        }
+      }
+
+      let distilledMemory = null;
+      let memoryType = "core";
+      let emotionalWeight = 1;
+      if (lowerMsg.includes("sleep") || lowerMsg.includes("insomnia") || lowerMsg.includes("tired")) {
+        distilledMemory = "The user struggles with sleeping and gets tired easily";
+        memoryType = "struggle";
+        emotionalWeight = 3;
+      } else if (lowerMsg.includes("music") || lowerMsg.includes("song")) {
+        distilledMemory = "The user finds comfort in music";
+        memoryType = "preference";
+        emotionalWeight = 2;
+      } else if (lowerMsg.includes("rain") || lowerMsg.includes("weather")) {
+        distilledMemory = "The user likes the sound of rain";
+        memoryType = "preference";
+        emotionalWeight = 1;
+      }
+
+      // Save conversation turns and memories to db/local fallback
+      let saveConvPromise: Promise<unknown> = Promise.resolve(null);
+      if (message !== "[AWAKENING]") {
+        saveConvPromise = dbSaveConversation(message, replyText, detectedEmotion, currentSessionId);
+      } else {
+        saveConvPromise = dbSaveConversation("System Initialized", replyText, detectedEmotion, currentSessionId);
+      }
+
+      let saveMemoryPromise: Promise<unknown> = Promise.resolve(null);
+      if (distilledMemory && distilledMemory.trim()) {
+        saveMemoryPromise = dbSaveMemory(memoryType, distilledMemory.trim(), emotionalWeight, currentSessionId);
+      }
+
+      await Promise.all([saveConvPromise, saveMemoryPromise]);
+
+      return NextResponse.json({
+        text: replyText,
+        emotion: detectedEmotion,
+        distilledMemory: distilledMemory || null,
+        isSimulated: true,
+      });
     }
 
     if (!message) {
@@ -48,8 +140,7 @@ export async function POST(req: Request) {
       );
     }
 
-    const currentSessionId = sessionId || "default-session";
-    const activeVoice = voice || "Bella";
+    // Duplicate const declarations currentSessionId and activeVoice removed since they are declared at the top of the function
 
     // 1. Memory Retrieval - Fetch top memories and emotional themes for this session
     const [topMemories, themes] = await Promise.all([

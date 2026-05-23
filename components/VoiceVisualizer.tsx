@@ -11,12 +11,12 @@ interface VoiceVisualizerProps {
   voice?: string;
 }
 
-export default function VoiceVisualizer({ 
-  state, 
-  audioLevels, 
-  averageAmplitude = 0, 
-  emotion = "calm", 
-  voice = "Bella" 
+export default function VoiceVisualizer({
+  state,
+  audioLevels,
+  averageAmplitude = 0,
+  emotion = "calm",
+  voice = "Bella"
 }: VoiceVisualizerProps) {
   const [barsCount] = useState(24);
   const [windowLoaded, setWindowLoaded] = useState(false);
@@ -74,7 +74,6 @@ export default function VoiceVisualizer({
     }
   };
 
-  const currentBarColor = getBarColor();
   const waveColors = getWaveColor();
 
   const bars = Array.from({ length: barsCount }, (_, i) => i);
@@ -155,15 +154,15 @@ export default function VoiceVisualizer({
             animate={
               state === "speaking"
                 ? {
-                    d: [
-                      `M0 50 Q 25 ${30 - averageAmplitude * 20}, 50 ${60 + averageAmplitude * 15} T 100 50`,
-                      `M0 50 Q 25 ${70 + averageAmplitude * 15}, 50 ${20 - averageAmplitude * 20} T 100 50`,
-                      `M0 50 Q 25 ${30 - averageAmplitude * 20}, 50 ${60 + averageAmplitude * 15} T 100 50`,
-                    ],
-                    opacity: 0.2 + averageAmplitude * 0.7,
-                  }
+                  d: [
+                    `M0 50 Q 25 ${30 - averageAmplitude * 20}, 50 ${60 + averageAmplitude * 15} T 100 50`,
+                    `M0 50 Q 25 ${70 + averageAmplitude * 15}, 50 ${20 - averageAmplitude * 20} T 100 50`,
+                    `M0 50 Q 25 ${30 - averageAmplitude * 20}, 50 ${60 + averageAmplitude * 15} T 100 50`,
+                  ],
+                  opacity: 0.2 + averageAmplitude * 0.7,
+                }
                 : state === "thinking"
-                ? {
+                  ? {
                     d: [
                       "M0 50 Q 25 40, 50 60 T 100 50",
                       "M0 50 Q 25 60, 50 40 T 100 50",
@@ -171,7 +170,7 @@ export default function VoiceVisualizer({
                     ],
                     opacity: 0.3,
                   }
-                : {
+                  : {
                     // Drifting slow ambient wave during silence
                     d: [
                       "M0 50 Q 25 44, 50 56 T 100 50",
@@ -197,21 +196,21 @@ export default function VoiceVisualizer({
             animate={
               state === "speaking"
                 ? {
-                    d: [
-                      `M0 50 Q 25 ${70 + averageAmplitude * 15}, 50 ${25 - averageAmplitude * 15} T 100 50`,
-                      `M0 50 Q 25 ${15 - averageAmplitude * 15}, 50 ${75 + averageAmplitude * 15} T 100 50`,
-                      `M0 50 Q 25 ${70 + averageAmplitude * 15}, 50 ${25 - averageAmplitude * 15} T 100 50`,
-                    ],
-                    opacity: 0.15 + averageAmplitude * 0.6,
-                  }
+                  d: [
+                    `M0 50 Q 25 ${70 + averageAmplitude * 15}, 50 ${25 - averageAmplitude * 15} T 100 50`,
+                    `M0 50 Q 25 ${15 - averageAmplitude * 15}, 50 ${75 + averageAmplitude * 15} T 100 50`,
+                    `M0 50 Q 25 ${70 + averageAmplitude * 15}, 50 ${25 - averageAmplitude * 15} T 100 50`,
+                  ],
+                  opacity: 0.15 + averageAmplitude * 0.6,
+                }
                 : {
-                    d: [
-                      "M0 50 Q 25 54, 50 46 T 100 50",
-                      "M0 50 Q 25 46, 50 54 T 100 50",
-                      "M0 50 Q 25 54, 50 46 T 100 50",
-                    ],
-                    opacity: 0.15,
-                  }
+                  d: [
+                    "M0 50 Q 25 54, 50 46 T 100 50",
+                    "M0 50 Q 25 46, 50 54 T 100 50",
+                    "M0 50 Q 25 54, 50 46 T 100 50",
+                  ],
+                  opacity: 0.15,
+                }
             }
             transition={{
               duration: state === "speaking" ? 0.25 : emotion === "excited" ? 4 : 7,
@@ -227,8 +226,8 @@ export default function VoiceVisualizer({
         {windowLoaded &&
           bars.map((index) => {
             const isSpeakingState = state === "speaking";
-            const realHeight = isSpeakingState && audioLevels 
-              ? `${4 + (audioLevels[index] || 0) * 0.85}px` 
+            const realHeight = isSpeakingState && audioLevels
+              ? `${4 + (audioLevels[index] || 0) * 0.85}px`
               : undefined;
 
             const barGlow = (() => {
@@ -266,10 +265,10 @@ export default function VoiceVisualizer({
                 className="w-[2.5px] min-h-[4px] rounded-[1px] transition-all duration-1000"
                 animate={realHeight ? { height: realHeight } : getBarAnimation(index)}
                 transition={realHeight ? { type: "spring", stiffness: 350, damping: 25 } : undefined}
-                style={{ 
-                  originY: 0.5, 
+                style={{
+                  originY: 0.5,
                   background: barGlow.bg,
-                  boxShadow: barGlow.shadow 
+                  boxShadow: barGlow.shadow
                 }}
               />
             );

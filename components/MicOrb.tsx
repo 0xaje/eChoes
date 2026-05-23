@@ -12,15 +12,15 @@ interface MicOrbProps {
   isDemoMode?: boolean;
 }
 
-export default function MicOrb({ 
-  state, 
-  volume = 0, 
-  onClick, 
-  emotion = "calm", 
+export default function MicOrb({
+  state,
+  volume = 0,
+  onClick,
+  emotion = "calm",
   voice = "Bella",
   isDemoMode = false
 }: MicOrbProps) {
-  
+
   // Dynamic color selection function combining state, emotion, and voice
   const getOrbTheme = () => {
     if (state === "thinking") {
@@ -166,10 +166,10 @@ export default function MicOrb({
           state === "speaking"
             ? { duration: 0.08 }
             : {
-                duration: emotion === "excited" ? 2.0 : emotion === "reflective" ? 4.5 : 3.2,
-                repeat: Infinity,
-                ease: "easeInOut",
-              }
+              duration: emotion === "excited" ? 2.0 : emotion === "reflective" ? 4.5 : 3.2,
+              repeat: Infinity,
+              ease: "easeInOut",
+            }
         }
       />
 
@@ -193,10 +193,10 @@ export default function MicOrb({
           scale: state === "speaking"
             ? { duration: 0.08 }
             : {
-                duration: isDemoMode ? 6.0 : (emotion === "excited" ? 2.2 : emotion === "reflective" ? 4.5 : 3.5),
-                repeat: Infinity,
-                ease: "easeInOut" as const,
-              }
+              duration: isDemoMode ? 6.0 : (emotion === "excited" ? 2.2 : emotion === "reflective" ? 4.5 : 3.5),
+              repeat: Infinity,
+              ease: "easeInOut" as const,
+            }
         }}
       >
         {/* Layer 1: Ambient Orbit Ring (Thick Glowing Edge) */}
@@ -259,10 +259,10 @@ export default function MicOrb({
                 state === "speaking"
                   ? { duration: 0.1 }
                   : {
-                      duration: 2.2,
-                      repeat: Infinity,
-                      ease: "easeInOut" as const,
-                    }
+                    duration: 2.2,
+                    repeat: Infinity,
+                    ease: "easeInOut" as const,
+                  }
               }
             />
 

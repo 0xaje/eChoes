@@ -12,9 +12,9 @@ export async function GET(req: Request) {
     
     // ElevenLabs IDs for our three distinct cinematic personalities
     const voiceMap: Record<string, string> = {
-      Bella: "EXAVITQu4vr4xnSDxMaL",      // Warm, intimate (Female)
-      Rachel: "21m00Tcm4TlvDq8ikWAM",     // Futuristic, elegant (Female)
-      Antoni: "pNInz6obpgHsBs2R0182",     // Grounded, exceptionally calm (Male)
+      Bella: "DfFwaCHjIgUaJiMr6JCz",      // User Custom Warm, intimate (Female)
+      Rachel: "4lsxkN1f5QDAcJm5IqIz",     // User Custom Futuristic, elegant (Female)
+      Antoni: "COz0rfxYPeuxpStJVyW9",     // User Custom Grounded, exceptionally calm (Male)
     };
 
     const voiceId = voiceMap[voiceName] || voiceMap.Bella;
@@ -23,10 +23,11 @@ export async function GET(req: Request) {
       return NextResponse.json({ error: "Text parameter is required." }, { status: 400 });
     }
 
-    if (!apiKey) {
+    const isMockTts = !apiKey || apiKey === "your_elevenlabs_api_key_here";
+    if (isMockTts) {
       return NextResponse.json(
-        { error: "ElevenLabs API key is not configured on the server." },
-        { status: 500 }
+        { isSimulated: true, text, voice: voiceName, emotion },
+        { status: 200 }
       );
     }
 
