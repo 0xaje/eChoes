@@ -7,7 +7,7 @@ import MicOrb from "@/components/MicOrb";
 import VoiceVisualizer from "@/components/VoiceVisualizer";
 import StatusText from "@/components/StatusText";
 import VoicePersonalityPanel from "@/components/VoicePersonalityPanel";
-import DemoModeToggle from "@/components/DemoModeToggle";
+
 import SynapticMemoryWeb from "@/components/SynapticMemoryWeb";
 import { useVoiceEngine } from "@/hooks/useVoiceEngine";
 import { soundscape } from "@/lib/soundscapeEngine";
@@ -33,7 +33,7 @@ function EchoesDashboard() {
     updateVoice,
   } = useVoiceEngine();
 
-  const [isDemoMode, setIsDemoMode] = useState(false);
+
   const [isVoicePanelOpen, setIsVoicePanelOpen] = useState(false);
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
   const [isSoundscapeMuted, setIsSoundscapeMuted] = useState(true);
@@ -53,11 +53,11 @@ function EchoesDashboard() {
   useEffect(() => {
     if (isEngineActive && !isSoundscapeMuted) {
       soundscape?.start();
-      soundscape?.updateEmotion(currentEmotion, isDemoMode);
+      soundscape?.updateEmotion(currentEmotion, false);
     } else {
       soundscape?.stop();
     }
-  }, [isEngineActive, currentEmotion, isDemoMode, isSoundscapeMuted]);
+  }, [isEngineActive, currentEmotion, isSoundscapeMuted]);
 
   // Container variants for cinematic reveal
   const containerVariants = {
@@ -67,12 +67,6 @@ function EchoesDashboard() {
       transition: {
         staggerChildren: 0.15,
         delayChildren: 0.1,
-      },
-    },
-    demoActive: {
-      opacity: 1,
-      transition: {
-        staggerChildren: 0.05,
       },
     },
   };
@@ -101,10 +95,9 @@ function EchoesDashboard() {
       {/* 1. Ambient Particles & Dynamic Auroras Background */}
       <AnimatedBackground />
 
-      {/* 2. Top Header Navigation - Hides smoothly in Demo Mode */}
+      {/* 2. Top Header Navigation */}
       <AnimatePresence>
-        {!isDemoMode && (
-          <motion.nav
+        <motion.nav
             key="header-nav"
             initial={{ y: -20, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
@@ -153,7 +146,6 @@ function EchoesDashboard() {
               </AnimatePresence>
             </div>
           </motion.nav>
-        )}
       </AnimatePresence>
 
       {/* 3. Main Center Area */}
@@ -167,7 +159,7 @@ function EchoesDashboard() {
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -15 }}
               transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
-              className="flex flex-col items-center justify-center max-w-lg w-full space-y-10 text-center px-4"
+              className="flex flex-col items-center justify-center max-w-4xl w-full space-y-10 text-center px-4"
             >
               <div className="space-y-4">
                 <h1 className="text-4xl md:text-5xl font-extralight tracking-[0.35em] uppercase bg-gradient-to-b from-white via-neutral-200 to-neutral-500 bg-clip-text text-transparent drop-shadow-[0_4px_12px_rgba(0,0,0,0.5)]">
@@ -204,7 +196,7 @@ function EchoesDashboard() {
               key="companion-screen"
               variants={containerVariants}
               initial="hidden"
-              animate={isDemoMode ? "demoActive" : "show"}
+              animate="show"
               exit={{ opacity: 0, scale: 0.95 }}
               className="w-full flex flex-col items-center justify-center relative min-h-[500px]"
             >
@@ -212,26 +204,18 @@ function EchoesDashboard() {
               <SynapticMemoryWeb 
                 memories={recentMemories} 
                 isActive={isEngineActive} 
-                isDemoMode={isDemoMode} 
+                isDemoMode={false} 
               />
 
               {/* Centerpiece 3D Camera drift container */}
               <motion.div
                 variants={itemVariants}
                 className="flex flex-col items-center justify-center transition-all duration-1000 z-20"
-                animate={isDemoMode ? {
-                  rotateX: [0, 1.5, -1.5, 0],
-                  rotateY: [0, 2.0, -2.0, 0],
-                  y: [0, -3, 3, 0],
-                } : {
+                animate={{
                   rotateY: mousePos.x,
                   rotateX: -mousePos.y,
                 }}
-                transition={isDemoMode ? {
-                  duration: 32,
-                  repeat: Infinity,
-                  ease: "easeInOut",
-                } : {
+                transition={{
                   type: "spring",
                   stiffness: 80,
                   damping: 24
@@ -242,7 +226,7 @@ function EchoesDashboard() {
                   state={state === "idle" ? "listening" : state}
                   volume={averageAmplitude}
                   onClick={handleInterruption}
-                  isDemoMode={isDemoMode}
+                  isDemoMode={false}
                 />
               </motion.div>
 
@@ -343,36 +327,34 @@ function EchoesDashboard() {
               </div>
               
               {/* Keyboard Fallback entry field (Sleek minimalist unbordered form) */}
-              {!isDemoMode && (
-                <div className="mt-4 w-full flex justify-center">
-                  <form
-                    onSubmit={(e) => {
-                      e.preventDefault();
-                      const form = e.currentTarget;
-                      const inputEl = form.elements.namedItem("message") as HTMLInputElement;
-                      if (inputEl && inputEl.value.trim()) {
-                        submitTextInput(inputEl.value);
-                        inputEl.value = "";
-                      }
-                    }}
-                    className="w-full max-w-md flex items-center bg-white/[0.01] border border-white/5 rounded-full px-5 py-1.5 focus-within:border-white/15 focus-within:bg-white/[0.02] transition-all duration-500"
+              <div className="mt-4 w-full flex justify-center">
+                <form
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    const form = e.currentTarget;
+                    const inputEl = form.elements.namedItem("message") as HTMLInputElement;
+                    if (inputEl && inputEl.value.trim()) {
+                      submitTextInput(inputEl.value);
+                      inputEl.value = "";
+                    }
+                  }}
+                  className="w-full max-w-md flex items-center bg-white/[0.01] border border-white/5 rounded-full px-5 py-1.5 focus-within:border-white/15 focus-within:bg-white/[0.02] transition-all duration-500"
+                >
+                  <input
+                    type="text"
+                    name="message"
+                    placeholder="Whisper to the Echo..."
+                    className="flex-1 bg-transparent border-0 outline-none text-[10px] font-light text-neutral-400 placeholder-neutral-600 tracking-wider px-2 py-1.5"
+                    autoComplete="off"
+                  />
+                  <button
+                    type="submit"
+                    className="w-7 h-7 rounded-full flex items-center justify-center transition-all duration-300 cursor-pointer"
                   >
-                    <input
-                      type="text"
-                      name="message"
-                      placeholder="Whisper to the Echo..."
-                      className="flex-1 bg-transparent border-0 outline-none text-[10px] font-light text-neutral-400 placeholder-neutral-600 tracking-wider px-2 py-1.5"
-                      autoComplete="off"
-                    />
-                    <button
-                      type="submit"
-                      className="w-7 h-7 rounded-full flex items-center justify-center transition-all duration-300 cursor-pointer"
-                    >
-                      <Sparkles className="w-3 h-3 text-neutral-500 hover:text-white transition-all" />
-                    </button>
-                  </form>
-                </div>
-              )}
+                    <Sparkles className="w-3 h-3 text-neutral-500 hover:text-white transition-all" />
+                  </button>
+                </form>
+              </div>
             </motion.div>
           )}
         </AnimatePresence>
@@ -384,7 +366,7 @@ function EchoesDashboard() {
       </footer>
 
       {/* 5. Floating Bottom-Left Voice Personality Drawer */}
-      {isEngineActive && !isDemoMode && (
+      {isEngineActive && (
         <div className="fixed bottom-6 left-8 md:left-12 z-50 flex flex-col items-start gap-4">
           <AnimatePresence>
             {isVoicePanelOpen && (
@@ -421,59 +403,49 @@ function EchoesDashboard() {
       )}
 
       {/* 6. Floating Bottom-Right Active Mic / Neural Toggle */}
-      {!isDemoMode && (
-        <div className="fixed bottom-6 right-8 md:right-12 z-50 flex items-center gap-3">
-          {/* Mute / Unmute Soundscape */}
-          {isEngineActive && (
-            <motion.button 
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
-              onClick={() => setIsSoundscapeMuted(prev => !prev)}
-              className={`w-9 h-9 rounded-full glass-card flex items-center justify-center cursor-pointer transition-all duration-500 border border-white/5 ${
-                !isSoundscapeMuted 
-                  ? "text-neutral-200 bg-white/5" 
-                  : "text-neutral-500 hover:text-neutral-300"
-              }`}
-              title={isSoundscapeMuted ? "Unmute Ambient Chords" : "Mute Ambient Chords"}
-            >
-              {isSoundscapeMuted ? (
-                <VolumeX className="w-3.5 h-3.5" />
-              ) : (
-                <Volume2 className="w-3.5 h-3.5 animate-pulse" />
-              )}
-            </motion.button>
-          )}
+      <div className="fixed bottom-6 right-8 md:right-12 z-50 flex items-center gap-3">
+        {/* Mute / Unmute Soundscape */}
+        {isEngineActive && (
+          <motion.button 
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
+            onClick={() => setIsSoundscapeMuted(prev => !prev)}
+            className={`w-9 h-9 rounded-full glass-card flex items-center justify-center cursor-pointer transition-all duration-500 border border-white/5 ${
+              !isSoundscapeMuted 
+                ? "text-neutral-200 bg-white/5" 
+                : "text-neutral-500 hover:text-neutral-300"
+            }`}
+            title={isSoundscapeMuted ? "Unmute Ambient Chords" : "Mute Ambient Chords"}
+          >
+            {isSoundscapeMuted ? (
+              <VolumeX className="w-3.5 h-3.5" />
+            ) : (
+              <Volume2 className="w-3.5 h-3.5 animate-pulse" />
+            )}
+          </motion.button>
+        )}
 
-          <div className="relative w-10 h-10 flex items-center justify-center">
-            <motion.button 
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
-              onClick={isEngineActive ? stopEngine : startEngine}
-              className={`w-9 h-9 rounded-full glass-card flex items-center justify-center cursor-pointer transition-all duration-500 border border-white/5 ${
-                isEngineActive 
-                  ? "text-neutral-300 bg-white/5" 
-                  : "text-neutral-500 hover:text-neutral-300"
-              }`}
-            >
-              {isEngineActive ? (
-                <Activity className="w-4 h-4 text-neutral-400" />
-              ) : (
-                <Power className="w-3.5 h-3.5" />
-              )}
-            </motion.button>
-          </div>
+        <div className="relative w-10 h-10 flex items-center justify-center">
+          <motion.button 
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
+            onClick={isEngineActive ? stopEngine : startEngine}
+            className={`w-9 h-9 rounded-full glass-card flex items-center justify-center cursor-pointer transition-all duration-500 border border-white/5 ${
+              isEngineActive 
+                ? "text-neutral-300 bg-white/5" 
+                : "text-neutral-500 hover:text-neutral-300"
+            }`}
+          >
+            {isEngineActive ? (
+              <Activity className="w-4 h-4 text-neutral-400" />
+            ) : (
+              <Power className="w-3.5 h-3.5" />
+            )}
+          </motion.button>
         </div>
-      )}
+      </div>
 
-      {/* Floating Demo Mode switch */}
-      {isEngineActive && (
-        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40">
-          <DemoModeToggle
-            isDemoMode={isDemoMode}
-            onToggle={() => setIsDemoMode((prev) => !prev)}
-          />
-        </div>
-      )}
+
     </div>
   );
 }
